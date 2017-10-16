@@ -32,6 +32,7 @@ class NotaryChangeTests {
     lateinit var newNotaryNode: StartedNode<MockNetwork.MockNode>
     lateinit var clientNodeA: StartedNode<MockNetwork.MockNode>
     lateinit var clientNodeB: StartedNode<MockNetwork.MockNode>
+    lateinit var clientA: Party
     lateinit var newNotaryParty: Party
     lateinit var oldNotaryParty: Party
 
@@ -39,8 +40,9 @@ class NotaryChangeTests {
     fun setUp() {
         mockNet = MockNetwork(cordappPackages = listOf("net.corda.testing.contracts"))
         oldNotaryNode = mockNet.createNotaryNode(MockNodeParameters(legalName = DUMMY_NOTARY.name))
-        clientNodeA = mockNet.createNode()
-        clientNodeB = mockNet.createNode()
+        clientNodeA = mockNet.createNode(MockNodeParameters(legalName = ALICE_NAME))
+        clientNodeB = mockNet.createNode(MockNodeParameters(legalName = BOB_NAME))
+        clientA = clientNodeA.info.singleIdentity()
         newNotaryNode = mockNet.createNotaryNode(MockNodeParameters(legalName = DUMMY_NOTARY.name.copy(organisation = "Dummy Notary 2")))
         mockNet.runNetwork() // Clear network map registration messages
         oldNotaryParty = newNotaryNode.services.networkMapCache.getNotary(DUMMY_NOTARY_SERVICE_NAME)!!
@@ -54,7 +56,7 @@ class NotaryChangeTests {
 
     @Test
     fun `should change notary for a state with single participant`() {
-        val state = issueState(clientNodeA, oldNotaryParty)
+        val state = issueState(clientNodeA.services, clientA, oldNotaryParty)
         assertEquals(state.state.notary, oldNotaryParty)
         val newState = changeNotary(state, clientNodeA, newNotaryParty)
         assertEquals(newState.state.notary, newNotaryParty)
@@ -92,7 +94,7 @@ class NotaryChangeTests {
 
     @Test
     fun `should not break encumbrance links`() {
-        val issueTx = issueEncumberedState(clientNodeA, oldNotaryParty)
+        val issueTx = issueEncumberedState(clientNodeA.services, clientA, oldNotaryParty)
 
         val state = StateAndRef(issueTx.outputs.first(), StateRef(issueTx.id, 0))
         val newNotary = newNotaryParty
@@ -126,7 +128,7 @@ class NotaryChangeTests {
 
     @Test
     fun `notary change and regular transactions are properly handled during resolution in longer chains`() {
-        val issued = issueState(clientNodeA, oldNotaryParty)
+        val issued = issueState(clientNodeA.services, clientA, oldNotaryParty)
         val moved = moveState(issued, clientNodeA, clientNodeB)
 
         // We don't to tx resolution when moving state to another node, so need to add the issue transaction manually
@@ -165,8 +167,8 @@ class NotaryChangeTests {
         return finalTransaction.tx.outRef(0)
     }
 
-    private fun issueEncumberedState(node: StartedNode<*>, notaryIdentity: Party): WireTransaction {
-        val owner = node.info.chooseIdentity().ref(0)
+    private fun issueEncumberedState(services: ServiceHub, nodeIdentity: Party, notaryIdentity: Party): WireTransaction {
+        val owner = nodeIdentity.ref(0)
         val stateA = DummyContract.SingleOwnerState(Random().nextInt(), owner.party)
         val stateB = DummyContract.SingleOwnerState(Random().nextInt(), owner.party)
         val stateC = DummyContract.SingleOwnerState(Random().nextInt(), owner.party)
@@ -177,9 +179,9 @@ class NotaryChangeTests {
             addOutputState(stateC, DummyContract.PROGRAM_ID, notaryIdentity)
             addOutputState(stateB, DummyContract.PROGRAM_ID, notaryIdentity, encumbrance = 1) // Encumbered by stateC
         }
-        val stx = node.services.signInitialTransaction(tx)
-        node.services.recordTransactions(stx)
-        return tx.toWireTransaction(node.services)
+        val stx = services.signInitialTransaction(tx)
+        services.recordTransactions(stx)
+        return tx.toWireTransaction(services)
     }
 
     // TODO: Add more test cases once we have a general flow/service exception handling mechanism:
@@ -191,10 +193,10 @@ class NotaryChangeTests {
     //       - The transaction type is not a notary change transaction at all.
 }
 
-fun issueState(node: StartedNode<*>, notaryIdentity: Party): StateAndRef<DummyContract.SingleOwnerState> {
-    val tx = DummyContract.generateInitial(Random().nextInt(), notaryIdentity, node.info.chooseIdentity().ref(0))
-    val stx = node.services.signInitialTransaction(tx)
-    node.services.recordTransactions(stx)
+fun issueState(services: ServiceHub, nodeIdentity: Party, notaryIdentity: Party): StateAndRef<DummyContract.SingleOwnerState> {
+    val tx = DummyContract.generateInitial(Random().nextInt(), notaryIdentity, nodeIdentity.ref(0))
+    val stx = services.signInitialTransaction(tx)
+    services.recordTransactions(stx)
     return stx.tx.outRef(0)
 }
 

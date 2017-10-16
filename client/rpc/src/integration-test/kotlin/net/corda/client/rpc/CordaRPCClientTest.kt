@@ -2,6 +2,7 @@ package net.corda.client.rpc
 
 import net.corda.core.crypto.random63BitValue
 import net.corda.core.flows.FlowInitiator
+import net.corda.core.identity.Party
 import net.corda.core.internal.concurrent.flatMap
 import net.corda.core.internal.packageName
 import net.corda.core.messaging.FlowProgressHandle
@@ -22,8 +23,7 @@ import net.corda.node.internal.Node
 import net.corda.node.internal.StartedNode
 import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
-import net.corda.testing.ALICE
-import net.corda.testing.chooseIdentity
+import net.corda.testing.ALICE_NAME
 import net.corda.testing.node.NodeBasedTest
 import org.apache.activemq.artemis.api.core.ActiveMQSecurityException
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
@@ -40,6 +40,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
             startFlowPermission<CashPaymentFlow>()
     ))
     private lateinit var node: StartedNode<Node>
+    private lateinit var identity: Party
     private lateinit var client: CordaRPCClient
     private var connection: CordaRPCConnection? = null
 
@@ -49,8 +50,9 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
 
     @Before
     fun setUp() {
-        node = startNotaryNode(ALICE.name, rpcUsers = listOf(rpcUser)).getOrThrow()
+        node = startNotaryNode(ALICE_NAME, rpcUsers = listOf(rpcUser)).getOrThrow()
         client = CordaRPCClient(node.internals.configuration.rpcAddress!!)
+        identity = node.info.identityFromX500Name(ALICE_NAME)
     }
 
     @After
@@ -84,7 +86,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
         println("Creating proxy")
         println("Starting flow")
         val flowHandle = connection!!.proxy.startTrackedFlow(::CashIssueFlow,
-                20.DOLLARS, OpaqueBytes.of(0), node.info.chooseIdentity()
+                20.DOLLARS, OpaqueBytes.of(0), identity
         )
         println("Started flow, waiting on result")
         flowHandle.progress.subscribe {
@@ -96,7 +98,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
     @Test
     fun `sub-type of FlowException thrown by flow`() {
         login(rpcUser.username, rpcUser.password)
-        val handle = connection!!.proxy.startFlow(::CashPaymentFlow, 100.DOLLARS, node.info.chooseIdentity())
+        val handle = connection!!.proxy.startFlow(::CashPaymentFlow, 100.DOLLARS, identity)
         assertThatExceptionOfType(CashException::class.java).isThrownBy {
             handle.returnValue.getOrThrow()
         }
@@ -105,7 +107,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
     @Test
     fun `check basic flow has no progress`() {
         login(rpcUser.username, rpcUser.password)
-        connection!!.proxy.startFlow(::CashPaymentFlow, 100.DOLLARS, node.info.chooseIdentity()).use {
+        connection!!.proxy.startFlow(::CashPaymentFlow, 100.DOLLARS, identity).use {
             assertFalse(it is FlowProgressHandle<*>)
         }
     }
@@ -118,7 +120,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
         assertTrue(startCash.isEmpty(), "Should not start with any cash")
 
         val flowHandle = proxy.startFlow(::CashIssueFlow,
-                123.DOLLARS, OpaqueBytes.of(0), node.info.chooseIdentity()
+                123.DOLLARS, OpaqueBytes.of(0), identity
         )
         println("Started issuing cash, waiting on result")
         flowHandle.returnValue.get()
@@ -143,7 +145,7 @@ class CordaRPCClientTest : NodeBasedTest(listOf("net.corda.finance.contracts", C
                     countShellFlows++
             }
         }
-        val nodeIdentity = node.info.chooseIdentity()
+        val nodeIdentity = identity
         node.services.startFlow(CashIssueFlow(2000.DOLLARS, OpaqueBytes.of(0), nodeIdentity), FlowInitiator.Shell).flatMap { it.resultFuture }.getOrThrow()
         proxy.startFlow(::CashIssueFlow,
                 123.DOLLARS,

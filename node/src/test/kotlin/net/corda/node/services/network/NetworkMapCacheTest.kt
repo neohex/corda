@@ -3,7 +3,7 @@ package net.corda.node.services.network
 import net.corda.core.node.services.NetworkMapCache
 import net.corda.testing.ALICE_NAME
 import net.corda.testing.BOB_NAME
-import net.corda.testing.chooseIdentity
+import net.corda.testing.DUMMY_NOTARY
 import net.corda.testing.node.MockNetwork
 import net.corda.testing.node.MockNodeParameters
 import net.corda.testing.singleIdentity
@@ -29,7 +29,7 @@ class NetworkMapCacheTest {
         mockNet.runNetwork()
 
         // Node A currently knows only about itself, so this returns node A
-        assertEquals(aliceNode.services.networkMapCache.getNodesByLegalIdentityKey(aliceNode.info.chooseIdentity().owningKey).singleOrNull(), aliceNode.info)
+        assertEquals(aliceNode.services.networkMapCache.getNodesByLegalIdentityKey(alice.owningKey).singleOrNull(), aliceNode.info)
         val bobNode = mockNet.createNode(MockNodeParameters(legalName = BOB_NAME, entropyRoot = entropy))
         val bob = bobNode.info.singleIdentity()
         assertEquals(alice, bob)
@@ -68,9 +68,9 @@ class NetworkMapCacheTest {
 
     @Test
     fun `remove node from cache`() {
-        val notaryNode = mockNet.createNotaryNode()
+        val notaryNode = mockNet.createNotaryNode(MockNodeParameters(legalName = DUMMY_NOTARY.name))
         val aliceNode = mockNet.createPartyNode(ALICE_NAME)
-        val notaryLegalIdentity = notaryNode.info.chooseIdentity()
+        val notaryLegalIdentity = notaryNode.info.identityAndCertFromX500Name(DUMMY_NOTARY.name)
         val alice = aliceNode.info.singleIdentity()
         val notaryCache = notaryNode.services.networkMapCache
         mockNet.runNetwork()
@@ -78,7 +78,7 @@ class NetworkMapCacheTest {
             assertThat(notaryCache.getNodeByLegalIdentity(alice) != null)
             notaryCache.removeNode(aliceNode.info)
             assertThat(notaryCache.getNodeByLegalIdentity(alice) == null)
-            assertThat(notaryCache.getNodeByLegalIdentity(notaryLegalIdentity) != null)
+            assertThat(notaryCache.getNodeByLegalIdentity(notaryLegalIdentity.party) != null)
             assertThat(notaryCache.getNodeByLegalName(ALICE_NAME) == null)
         }
     }
