@@ -106,8 +106,7 @@ interface ServiceHubInternal : ServiceHub {
         }
 
         if (notifyVault) {
-            val toNotify = recordedTransactions.map { if (it.isNotaryChangeTransaction()) it.notaryChangeTx else it.tx }
-            vaultService.notifyAll(toNotify)
+            vaultService.notifyAll(txs.map { it.coreTransaction })
         }
     }
 

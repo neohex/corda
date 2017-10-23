@@ -5,14 +5,11 @@ import co.paralleluniverse.strands.Strand
 import net.corda.core.contracts.*
 import net.corda.core.crypto.SecureHash
 import net.corda.core.internal.*
+import net.corda.core.messaging.DataFeed
 import net.corda.core.node.StateLoader
-import net.corda.core.node.services.*
+import net.corda.core.node.services.KeyManagementService
 import net.corda.core.node.services.StatesNotAvailableException
 import net.corda.core.node.services.Vault
-import net.corda.core.node.services.vault.QueryCriteria
-import net.corda.core.node.services.vault.Sort
-import net.corda.core.node.services.vault.SortAttribute
-import net.corda.core.messaging.DataFeed
 import net.corda.core.node.services.VaultQueryException
 import net.corda.core.node.services.vault.*
 import net.corda.core.schemas.PersistentStateRef
@@ -20,9 +17,9 @@ import net.corda.core.serialization.SerializationDefaults.STORAGE_CONTEXT
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.serialization.deserialize
 import net.corda.core.serialization.serialize
+import net.corda.core.transactions.ContractUpgradeWireTransaction
 import net.corda.core.transactions.CoreTransaction
 import net.corda.core.transactions.NotaryChangeWireTransaction
-import net.corda.core.transactions.WireTransaction
 import net.corda.core.utilities.*
 import net.corda.node.services.api.VaultServiceInternal
 import net.corda.node.services.persistence.HibernateConfiguration
@@ -118,81 +115,74 @@ class NodeVaultService(private val clock: Clock, private val keyManagementServic
     override val updates: Observable<Vault.Update<ContractState>>
         get() = mutex.locked { _updatesInDbTx }
 
+    /** Groups adjacent transactions into batches to generate separate net updates per transaction type. */
     override fun notifyAll(txns: Iterable<CoreTransaction>) {
-        // It'd be easier to just group by type, but then we'd lose ordering.
-        val regularTxns = mutableListOf<WireTransaction>()
-        val notaryChangeTxns = mutableListOf<NotaryChangeWireTransaction>()
+        if (!txns.any()) return
+        val batch = mutableListOf<CoreTransaction>()
+
+        fun flushBatch() {
+            val updates = makeUpdates(batch)
+            processAndNotify(updates)
+            batch.clear()
+        }
 
         for (tx in txns) {
-            when (tx) {
-                is WireTransaction -> {
-                    regularTxns.add(tx)
-                    if (notaryChangeTxns.isNotEmpty()) {
-                        notifyNotaryChange(notaryChangeTxns.toList())
-                        notaryChangeTxns.clear()
-                    }
-                }
-                is NotaryChangeWireTransaction -> {
-                    notaryChangeTxns.add(tx)
-                    if (regularTxns.isNotEmpty()) {
-                        notifyRegular(regularTxns.toList())
-                        regularTxns.clear()
-                    }
-                }
+            if (batch.isNotEmpty() && tx::class.java != batch.last()::class.java) {
+                flushBatch()
             }
+            batch.add(tx)
         }
-
-        if (regularTxns.isNotEmpty()) notifyRegular(regularTxns.toList())
-        if (notaryChangeTxns.isNotEmpty()) notifyNotaryChange(notaryChangeTxns.toList())
+        flushBatch()
     }
 
-    private fun notifyRegular(txns: Iterable<WireTransaction>) {
-        fun makeUpdate(tx: WireTransaction): Vault.Update<ContractState> {
-            val myKeys = keyManagementService.filterMyKeys(tx.outputs.flatMap { it.data.participants.map { it.owningKey } })
-            val ourNewStates = tx.outputs.
-                    filter { isRelevant(it.data, myKeys.toSet()) }.
-                    map { tx.outRef<ContractState>(it.data) }
-
-            // Retrieve all unconsumed states for this transaction's inputs
-            val consumedStates = loadStates(tx.inputs)
-
-            // Is transaction irrelevant?
-            if (consumedStates.isEmpty() && ourNewStates.isEmpty()) {
-                log.trace { "tx ${tx.id} was irrelevant to this vault, ignoring" }
-                return Vault.NoUpdate
-            }
-
-            return Vault.Update(consumedStates, ourNewStates.toHashSet())
+    private fun makeUpdates(batch: Iterable<CoreTransaction>): List<Vault.Update<ContractState>> {
+        return batch.mapNotNull {
+            if (it is NotaryChangeWireTransaction) makeNotaryChangeUpdate(it) else makeUpdate(it)
         }
 
-        val netDelta = txns.fold(Vault.NoUpdate) { netDelta, txn -> netDelta + makeUpdate(txn) }
-        processAndNotify(netDelta)
     }
 
-    private fun notifyNotaryChange(txns: Iterable<NotaryChangeWireTransaction>) {
-        fun makeUpdate(tx: NotaryChangeWireTransaction): Vault.Update<ContractState> {
-            // We need to resolve the full transaction here because outputs are calculated from inputs
-            // We also can't do filtering beforehand, since output encumbrance pointers get recalculated based on
-            // input positions
-            val ltx = tx.resolve(stateLoader, emptyList())
-            val myKeys = keyManagementService.filterMyKeys(ltx.outputs.flatMap { it.data.participants.map { it.owningKey } })
-            val (consumedStateAndRefs, producedStates) = ltx.inputs.
-                    zip(ltx.outputs).
-                    filter { (_, output) -> isRelevant(output.data, myKeys.toSet()) }.
-                    unzip()
+    private fun makeUpdate(tx: CoreTransaction): Vault.Update<ContractState>? {
+        val myKeys = keyManagementService.filterMyKeys(tx.outputs.flatMap { it.data.participants.map { it.owningKey } })
+        val ourNewStates = tx.outputs.
+                filter { isRelevant(it.data, myKeys.toSet()) }.
+                map { tx.outRef<ContractState>(it.data) }
 
-            val producedStateAndRefs = producedStates.map { ltx.outRef<ContractState>(it.data) }
+        // Retrieve all unconsumed states for this transaction's inputs
+        val consumedStates = loadStates(tx.inputs)
 
-            if (consumedStateAndRefs.isEmpty() && producedStateAndRefs.isEmpty()) {
-                log.trace { "tx ${tx.id} was irrelevant to this vault, ignoring" }
-                return Vault.NoNotaryUpdate
-            }
-
-            return Vault.Update(consumedStateAndRefs.toHashSet(), producedStateAndRefs.toHashSet(), null, Vault.UpdateType.NOTARY_CHANGE)
+        // Is transaction irrelevant?
+        if (consumedStates.isEmpty() && ourNewStates.isEmpty()) {
+            log.trace { "tx ${tx.id} was irrelevant to this vault, ignoring" }
+            return null
         }
 
-        val netDelta = txns.fold(Vault.NoNotaryUpdate) { netDelta, txn -> netDelta + makeUpdate(txn) }
-        processAndNotify(netDelta)
+        val updateType = if (tx is ContractUpgradeWireTransaction) {
+            Vault.UpdateType.CONTRACT_UPGRADE
+        } else {
+            Vault.UpdateType.GENERAL
+        }
+        return Vault.Update(consumedStates.toSet(), ourNewStates.toSet(), null, updateType)
+    }
+
+    private fun makeNotaryChangeUpdate(tx: NotaryChangeWireTransaction): Vault.Update<ContractState>? {
+        // We need to resolve the full transaction here because outputs are calculated from inputs
+        // We also can't do filtering beforehand, since output encumbrance pointers get recalculated based on
+        // input positions
+        val ltx = tx.resolve(stateLoader, emptyList())
+        val myKeys = keyManagementService.filterMyKeys(ltx.outputs.flatMap { it.data.participants.map { it.owningKey } })
+        val (consumedStateAndRefs, producedStates) = ltx.inputs.
+                zip(ltx.outputs).
+                filter { (_, output) -> isRelevant(output.data, myKeys.toSet()) }.
+                unzip()
+
+        val producedStateAndRefs = producedStates.map { ltx.outRef<ContractState>(it.data) }
+
+        if (consumedStateAndRefs.isEmpty() && producedStateAndRefs.isEmpty()) {
+            log.trace { "tx ${tx.id} was irrelevant to this vault, ignoring" }
+            return null
+        }
+        return Vault.Update(consumedStateAndRefs.toSet(), producedStateAndRefs.toSet(), null, Vault.UpdateType.NOTARY_CHANGE)
     }
 
     // TODO: replace this method in favour of a VaultQuery query
@@ -219,13 +209,15 @@ class NodeVaultService(private val clock: Clock, private val keyManagementServic
         return states
     }
 
-    private fun processAndNotify(update: Vault.Update<ContractState>) {
-        if (!update.isEmpty()) {
-            recordUpdate(update)
+    private fun processAndNotify(updates: List<Vault.Update<ContractState>>) {
+        if (updates.isEmpty()) return
+        val netUpdate = updates.reduce { update1, update2 -> update1 + update2 }
+        if (!netUpdate.isEmpty()) {
+            recordUpdate(netUpdate)
             mutex.locked {
                 // flowId required by SoftLockManager to perform auto-registration of soft locks for new states
                 val uuid = (Strand.currentStrand() as? FlowStateMachineImpl<*>)?.id?.uuid
-                val vaultUpdate = if (uuid != null) update.copy(flowId = uuid) else update
+                val vaultUpdate = if (uuid != null) netUpdate.copy(flowId = uuid) else netUpdate
                 updatesPublisher.onNext(vaultUpdate)
             }
         }

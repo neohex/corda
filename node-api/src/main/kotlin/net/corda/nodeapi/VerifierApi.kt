@@ -1,7 +1,7 @@
 package net.corda.nodeapi
 
 import net.corda.core.serialization.*
-import net.corda.core.transactions.LedgerTransaction
+import net.corda.core.transactions.FullTransaction
 import net.corda.core.utilities.sequence
 import org.apache.activemq.artemis.api.core.SimpleString
 import org.apache.activemq.artemis.api.core.client.ClientMessage
@@ -16,14 +16,14 @@ object VerifierApi {
 
     data class VerificationRequest(
             val verificationId: Long,
-            val transaction: LedgerTransaction,
+            val transaction: FullTransaction,
             val responseAddress: SimpleString
     ) {
         companion object {
             fun fromClientMessage(message: ClientMessage): ObjectWithCompatibleContext<VerificationRequest> {
                 val bytes = ByteArray(message.bodySize).apply { message.bodyBuffer.readBytes(this) }
                 val bytesSequence = bytes.sequence()
-                val (transaction, context) = bytesSequence.deserializeWithCompatibleContext<LedgerTransaction>()
+                val (transaction, context) = bytesSequence.deserializeWithCompatibleContext<FullTransaction>()
                 val request = VerificationRequest(
                         message.getLongProperty(VERIFICATION_ID_FIELD_NAME),
                         transaction,
