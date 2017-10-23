@@ -5,6 +5,7 @@ import net.corda.confidential.SwapIdentitiesFlow
 import net.corda.core.contracts.Amount
 import net.corda.core.contracts.InsufficientBalanceException
 import net.corda.core.flows.StartableByRPC
+import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.AnonymousParty
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
@@ -28,15 +29,17 @@ open class CashPaymentFlow(
         val recipient: Party,
         val anonymous: Boolean,
         progressTracker: ProgressTracker,
-        val issuerConstraint: Set<Party> = emptySet()) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+        val issuerConstraint: Set<Party> = emptySet(),
+        private val whiteListedParties: Set<Party>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party) : this(amount, recipient, true, tracker())
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party, anonymous: Boolean) : this(amount, recipient, anonymous, tracker())
-    constructor(request: PaymentRequest) : this(request.amount, request.recipient, request.anonymous, tracker(), request.issuerConstraint)
+    constructor(request: PaymentRequest) : this(request.amount, request.recipient, request.anonymous, tracker(), request.issuerConstraint, request.whiteListedParties)
 
     @Suspendable
     override fun call(): AbstractCashFlow.Result {
+        checkCanTransactWith(recipient)
         progressTracker.currentStep = GENERATING_ID
         val txIdentities = if (anonymous) {
             subFlow(SwapIdentitiesFlow(recipient))
@@ -65,9 +68,19 @@ open class CashPaymentFlow(
         return Result(notarised, anonymousRecipient)
     }
 
+    private fun checkCanTransactWith(recipient: AbstractParty) {
+        if(whiteListedParties != null) {
+            if(!whiteListedParties.map { it.owningKey }.contains(recipient.owningKey)) {
+                val msg = "Cannot transact with $recipient"
+                throw CashException(msg, IllegalArgumentException(msg))
+            }
+        }
+    }
+
     @CordaSerializable
     class PaymentRequest(amount: Amount<Currency>,
                          val recipient: Party,
                          val anonymous: Boolean,
-                         val issuerConstraint: Set<Party> = emptySet()) : AbstractRequest(amount)
+                         val issuerConstraint: Set<Party> = emptySet(),
+                         val whiteListedParties: Set<Party>? = null) : AbstractRequest(amount)
 }

@@ -70,7 +70,7 @@ class ExplorerSimulation(val options: OptionSet) {
 
     private fun startDemoNodes() {
         val portAllocation = PortAllocation.Incremental(20000)
-        driver(portAllocation = portAllocation, extraCordappPackagesToScan = listOf("net.corda.finance")) {
+        driver(portAllocation = portAllocation, extraCordappPackagesToScan = listOf("net.corda.finance"), isDebug = true) {
             // TODO : Supported flow should be exposed somehow from the node instead of set of ServiceInfo.
             val notary = startNode(providedName = DUMMY_NOTARY.name, advertisedServices = setOf(ServiceInfo(SimpleNotaryService.type)),
                     customOverrides = mapOf("nearestCity" to "Zurich"))
@@ -178,7 +178,11 @@ class ExplorerSimulation(val options: OptionSet) {
                 }
             }.generate(SplittableRandom())
             // Party pay requests.
-            eventGenerator.moveCashGenerator.combine(Generator.pickOne(parties)) { request, (party, rpc) ->
+            eventGenerator.moveCashGenerator.combine(Generator.pickOne(parties)) { genRequest, (party, rpc) ->
+                val request = CashPaymentFlow.PaymentRequest(genRequest.amount, genRequest.recipient,
+                        genRequest.anonymous, genRequest.issuerConstraint,
+                        // Only Alice and Bob in the list of white listed parties.
+                        listOf(aliceNode, bobNode).map { it.nodeInfo.legalIdentities.first() }.toSet())
                 println("${Instant.now()} [$i] SENDING ${request.amount} from $party to ${request.recipient}")
                 rpc.startFlow(::CashPaymentFlow, request).log(i, party.name.toString())
             }.generate(SplittableRandom())
