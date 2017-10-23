@@ -28,6 +28,7 @@ import net.corda.nodeapi.User
 import net.corda.testing.ALICE
 import net.corda.testing.BOB
 import net.corda.testing.DUMMY_NOTARY
+import net.corda.testing.OUTSIDER
 import net.corda.testing.driver.NodeHandle
 import net.corda.testing.driver.PortAllocation
 import net.corda.testing.driver.driver
@@ -49,6 +50,7 @@ class ExplorerSimulation(val options: OptionSet) {
     private lateinit var notaryNode: NodeHandle
     private lateinit var aliceNode: NodeHandle
     private lateinit var bobNode: NodeHandle
+    private lateinit var outsiderNode: NodeHandle
     private lateinit var issuerNodeGBP: NodeHandle
     private lateinit var issuerNodeUSD: NodeHandle
     private lateinit var notary: Party
@@ -78,6 +80,9 @@ class ExplorerSimulation(val options: OptionSet) {
             val bob = startNode(providedName = BOB.name, rpcUsers = arrayListOf(user),
                     advertisedServices = setOf(ServiceInfo(ServiceType.corda.getSubType("cash"))),
                     customOverrides = mapOf("nearestCity" to "Madrid"))
+            val outsider = startNode(providedName = OUTSIDER.name, rpcUsers = arrayListOf(user),
+                    advertisedServices = setOf(ServiceInfo(ServiceType.corda.getSubType("cash"))),
+                    customOverrides = mapOf("nearestCity" to OUTSIDER.name.locality))
             val ukBankName = CordaX500Name(organisation = "UK Bank Plc", locality = "London", country = "GB")
             val usaBankName = CordaX500Name(organisation = "USA Bank Corp", locality = "New York", country = "US")
             val issuerGBP = startNode(providedName = ukBankName, rpcUsers = arrayListOf(manager),
@@ -90,10 +95,11 @@ class ExplorerSimulation(val options: OptionSet) {
             notaryNode = notary.get()
             aliceNode = alice.get()
             bobNode = bob.get()
+            outsiderNode = outsider.get()
             issuerNodeGBP = issuerGBP.get()
             issuerNodeUSD = issuerUSD.get()
 
-            arrayOf(notaryNode, aliceNode, bobNode, issuerNodeGBP, issuerNodeUSD).forEach {
+            arrayOf(notaryNode, aliceNode, bobNode, outsiderNode, issuerNodeGBP, issuerNodeUSD).forEach {
                 println("${it.nodeInfo.legalIdentities.first()} started on ${it.configuration.rpcAddress}")
             }
 
@@ -116,6 +122,10 @@ class ExplorerSimulation(val options: OptionSet) {
         val bobConnection = bobClient.start(user.username, user.password)
         val bobRPC = bobConnection.proxy
 
+        val outsiderClient = outsiderNode.rpcClientToNode()
+        val outsiderConnection = outsiderClient.start(user.username, user.password)
+        val outsiderRPC = outsiderConnection.proxy
+
         val issuerClientGBP = issuerNodeGBP.rpcClientToNode()
         val issuerGBPConnection = issuerClientGBP.start(manager.username, manager.password)
         val issuerRPCGBP = issuerGBPConnection.proxy
@@ -124,16 +134,18 @@ class ExplorerSimulation(val options: OptionSet) {
         val issuerUSDConnection = issuerClientUSD.start(manager.username, manager.password)
         val issuerRPCUSD = issuerUSDConnection.proxy
 
-        RPCConnections.addAll(listOf(aliceConnection, bobConnection, issuerGBPConnection, issuerUSDConnection))
+        RPCConnections.addAll(listOf(aliceConnection, bobConnection, outsiderConnection, issuerGBPConnection, issuerUSDConnection))
         issuers.putAll(mapOf(USD to issuerRPCUSD, GBP to issuerRPCGBP))
 
         parties.addAll(listOf(aliceNode.nodeInfo.legalIdentities.first() to aliceRPC,
                 bobNode.nodeInfo.legalIdentities.first() to bobRPC,
+                outsiderNode.nodeInfo.legalIdentities.first() to outsiderRPC,
                 issuerNodeGBP.nodeInfo.legalIdentities.first() to issuerRPCGBP,
                 issuerNodeUSD.nodeInfo.legalIdentities.first() to issuerRPCUSD))
 
         aliceRPC.waitUntilNetworkReady()
         bobRPC.waitUntilNetworkReady()
+        outsiderRPC.waitUntilNetworkReady()
         issuerRPCGBP.waitUntilNetworkReady()
         issuerRPCUSD.waitUntilNetworkReady()
     }
