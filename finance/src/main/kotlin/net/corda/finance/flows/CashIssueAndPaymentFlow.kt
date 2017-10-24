@@ -3,6 +3,7 @@ package net.corda.finance.flows
 import co.paralleluniverse.fibers.Suspendable
 import net.corda.core.contracts.Amount
 import net.corda.core.flows.StartableByRPC
+import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.utilities.OpaqueBytes
@@ -26,16 +27,18 @@ class CashIssueAndPaymentFlow(val amount: Amount<Currency>,
                               val recipient: Party,
                               val anonymous: Boolean,
                               val notary: Party,
-                              progressTracker: ProgressTracker) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+                              progressTracker: ProgressTracker,
+                              membershipListNames: List<CordaX500Name>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker, membershipListNames) {
     constructor(amount: Amount<Currency>,
                 issueRef: OpaqueBytes,
                 recipient: Party,
                 anonymous: Boolean,
                 notary: Party) : this(amount, issueRef, recipient, anonymous, notary, tracker())
-    constructor(request: IssueAndPaymentRequest) : this(request.amount, request.issueRef, request.recipient, request.anonymous, request.notary, tracker())
+    constructor(request: IssueAndPaymentRequest) : this(request.amount, request.issueRef, request.recipient, request.anonymous, request.notary, tracker(), request.membershipListNames)
 
     @Suspendable
     override fun call(): Result {
+        listOf(recipient).checkAllInMembershipLists()
         subFlow(CashIssueFlow(amount, issueRef, notary))
         return subFlow(CashPaymentFlow(amount, recipient, anonymous))
     }
@@ -45,5 +48,6 @@ class CashIssueAndPaymentFlow(val amount: Amount<Currency>,
                                  val issueRef: OpaqueBytes,
                                  val recipient: Party,
                                  val notary: Party,
-                                 val anonymous: Boolean) : AbstractRequest(amount)
+                                 val anonymous: Boolean,
+                                 val membershipListNames: List<CordaX500Name>? = null) : AbstractRequest(amount)
 }

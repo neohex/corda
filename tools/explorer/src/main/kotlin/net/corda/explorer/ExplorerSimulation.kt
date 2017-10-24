@@ -163,28 +163,35 @@ class ExplorerSimulation(val options: OptionSet) {
             })
         }
 
+        // Only parties in a particular membership are supported.
+        val membershipListNames = listOf(membershipListName)
+
         for (i in 0..maxIterations) {
             Thread.sleep(1000)
             // Issuer requests.
-            eventGenerator.issuerGenerator.map { request ->
-                when (request) {
-                    is IssueAndPaymentRequest -> issuers[request.amount.token]?.let {
-                        println("${Instant.now()} [$i] ISSUING ${request.amount} with ref ${request.issueRef} to ${request.recipient}")
-                        it.startFlow(::CashIssueAndPaymentFlow, request).log(i, "${request.amount.token}Issuer")
+            eventGenerator.issuerGenerator.map { genRequest ->
+                when (genRequest) {
+                    is IssueAndPaymentRequest -> {
+                        // Copy generated request and add membershipList.
+                        val request = CashIssueAndPaymentFlow.IssueAndPaymentRequest(
+                                genRequest.amount, genRequest.issueRef, genRequest.recipient, genRequest.notary, genRequest.anonymous, membershipListNames)
+                        issuers[request.amount.token]?.let {
+                            println("${Instant.now()} [$i] ISSUING ${request.amount} with ref ${request.issueRef} to ${request.recipient}")
+                            it.startFlow(::CashIssueAndPaymentFlow, request).log(i, "${request.amount.token}Issuer")
+                        }
                     }
-                    is ExitRequest -> issuers[request.amount.token]?.let {
-                        println("${Instant.now()} [$i] EXITING ${request.amount} with ref ${request.issueRef}")
-                        it.startFlow(::CashExitFlow, request).log(i, "${request.amount.token}Exit")
+                    is ExitRequest -> issuers[genRequest.amount.token]?.let {
+                        println("${Instant.now()} [$i] EXITING ${genRequest.amount} with ref ${genRequest.issueRef}")
+                        it.startFlow(::CashExitFlow, genRequest).log(i, "${genRequest.amount.token}Exit")
                     }
-                    else -> throw IllegalArgumentException("Unsupported command: $request")
+                    else -> throw IllegalArgumentException("Unsupported command: $genRequest")
                 }
             }.generate(SplittableRandom())
             // Party pay requests.
             eventGenerator.moveCashGenerator.combine(Generator.pickOne(parties)) { genRequest, (party, rpc) ->
-                val request = CashPaymentFlow.PaymentRequest(genRequest.amount, genRequest.recipient,
-                        genRequest.anonymous, genRequest.issuerConstraint,
-                        // Only parties in a particular membership are supported
-                        listOf(membershipListName))
+                // Copy generated request and add membershipList.
+                val request = CashPaymentFlow.PaymentRequest(
+                        genRequest.amount, genRequest.recipient, genRequest.anonymous, genRequest.issuerConstraint, membershipListNames)
                 println("${Instant.now()} [$i] SENDING ${request.amount} from $party to ${request.recipient}")
                 rpc.startFlow(::CashPaymentFlow, request).log(i, party.name.toString())
             }.generate(SplittableRandom())

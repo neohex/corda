@@ -5,7 +5,6 @@ import net.corda.confidential.SwapIdentitiesFlow
 import net.corda.core.contracts.Amount
 import net.corda.core.contracts.InsufficientBalanceException
 import net.corda.core.flows.StartableByRPC
-import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.AnonymousParty
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
@@ -13,7 +12,6 @@ import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.ProgressTracker
 import net.corda.finance.contracts.asset.Cash
-import net.corda.membership.MembershipListProvider
 import java.util.*
 
 /**
@@ -32,7 +30,7 @@ open class CashPaymentFlow(
         val anonymous: Boolean,
         progressTracker: ProgressTracker,
         val issuerConstraint: Set<Party> = emptySet(),
-        private val membershipListNames: List<CordaX500Name>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+        membershipListNames: List<CordaX500Name>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker, membershipListNames) {
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party) : this(amount, recipient, true, tracker())
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
@@ -41,7 +39,7 @@ open class CashPaymentFlow(
 
     @Suspendable
     override fun call(): AbstractCashFlow.Result {
-        listOf(ourIdentity, recipient).checkInMembershipList()
+        listOf(ourIdentity, recipient).checkAllInMembershipLists()
 
         progressTracker.currentStep = GENERATING_ID
         val txIdentities = if (anonymous) {
@@ -69,20 +67,6 @@ open class CashPaymentFlow(
         progressTracker.currentStep = FINALISING_TX
         val notarised = finaliseTx(tx, setOf(recipient), "Unable to notarise spend")
         return Result(notarised, anonymousRecipient)
-    }
-
-    private fun Iterable<AbstractParty>.checkInMembershipList() {
-        if(membershipListNames != null) {
-            forEach { party ->
-                // Uses streams as there can be multiple membership lists and if at least one of them contains a party - there not even a
-                // need to load them all.
-                val membershipLists = membershipListNames.stream().map { MembershipListProvider.obtainMembershipList(it, serviceHub.networkMapCache) }
-                if (!membershipLists.anyMatch { ml -> ml.contains(party) }) {
-                    val msg = "'$party' doesn't belong to any of the membership lists: ${membershipListNames.map { it.commonName }.joinToString()}"
-                    throw CashException(msg, IllegalArgumentException(msg))
-                }
-            }
-        }
     }
 
     @CordaSerializable
