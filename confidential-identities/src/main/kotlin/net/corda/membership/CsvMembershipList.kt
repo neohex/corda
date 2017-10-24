@@ -20,12 +20,13 @@ class CsvMembershipList(private val fileName: String, private val networkMapCach
         val reader = CSVReaderBuilder(FileReader(fileName)).withSkipLines(1).build()
         reader.use {
             val linesRead = reader.readAll()
-            val withPossibleNullParties = linesRead.map { line -> createParty(CordaX500Name.parse(line[0])) }
-            val nullsRemoved = withPossibleNullParties.flatMap { party ->
+            val commentsRemoved = linesRead.filterNot { line -> line.isEmpty() || line[0].startsWith("#") }
+            val withPossibleNullParties = commentsRemoved.map { line -> createParty(CordaX500Name.parse(line[0])) }
+            val nullPartiesRemoved = withPossibleNullParties.flatMap { party ->
                 if (party == null) emptySet()
                 else setOf(party)
             }
-            return nullsRemoved.toSet()
+            return nullPartiesRemoved.toSet()
         }
     }
 
@@ -37,5 +38,4 @@ class CsvMembershipList(private val fileName: String, private val networkMapCach
         }
         return nodeInfo.legalIdentities.first()
     }
-
 }
