@@ -59,6 +59,8 @@ class ExplorerSimulation(val options: OptionSet) {
     private val issuers = HashMap<Currency, CordaRPCOps>()
     private val parties = ArrayList<Pair<Party, CordaRPCOps>>()
 
+    private val membershipListName = CordaX500Name("AliceBobMembershipList", "AliceBob", "Washington", "US")
+
     init {
         startDemoNodes()
     }
@@ -181,8 +183,8 @@ class ExplorerSimulation(val options: OptionSet) {
             eventGenerator.moveCashGenerator.combine(Generator.pickOne(parties)) { genRequest, (party, rpc) ->
                 val request = CashPaymentFlow.PaymentRequest(genRequest.amount, genRequest.recipient,
                         genRequest.anonymous, genRequest.issuerConstraint,
-                        // Only Alice and Bob in the list of white listed parties.
-                        listOf(aliceNode, bobNode).map { it.nodeInfo.legalIdentities.first() }.toSet())
+                        // Only parties in a particular membership are supported
+                        listOf(membershipListName))
                 println("${Instant.now()} [$i] SENDING ${request.amount} from $party to ${request.recipient}")
                 rpc.startFlow(::CashPaymentFlow, request).log(i, party.name.toString())
             }.generate(SplittableRandom())

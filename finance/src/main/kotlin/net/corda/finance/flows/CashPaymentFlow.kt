@@ -7,11 +7,13 @@ import net.corda.core.contracts.InsufficientBalanceException
 import net.corda.core.flows.StartableByRPC
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.AnonymousParty
+import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.ProgressTracker
 import net.corda.finance.contracts.asset.Cash
+import net.corda.membership.MembershipListProvider
 import java.util.*
 
 /**
@@ -30,12 +32,12 @@ open class CashPaymentFlow(
         val anonymous: Boolean,
         progressTracker: ProgressTracker,
         val issuerConstraint: Set<Party> = emptySet(),
-        private val whiteListedParties: Set<Party>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+        private val membershipListNames: List<CordaX500Name>? = null) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party) : this(amount, recipient, true, tracker())
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party, anonymous: Boolean) : this(amount, recipient, anonymous, tracker())
-    constructor(request: PaymentRequest) : this(request.amount, request.recipient, request.anonymous, tracker(), request.issuerConstraint, request.whiteListedParties)
+    constructor(request: PaymentRequest) : this(request.amount, request.recipient, request.anonymous, tracker(), request.issuerConstraint, request.membershipListNames)
 
     @Suspendable
     override fun call(): AbstractCashFlow.Result {
@@ -69,9 +71,12 @@ open class CashPaymentFlow(
     }
 
     private fun checkCanTransactWith(recipient: AbstractParty) {
-        if(whiteListedParties != null) {
-            if(!whiteListedParties.map { it.owningKey }.contains(recipient.owningKey)) {
-                val msg = "Cannot transact with $recipient"
+        if(membershipListNames != null) {
+            // Uses streams as there can be multiple membership lists and if at least one of them contains a party - there not even a
+            // need to load them all.
+            val membershipLists = membershipListNames.stream().map { MembershipListProvider.obtainMembershipList(it) }
+            if(!membershipLists.anyMatch { ml ->  ml.contains(recipient)}) {
+                val msg = "Cannot transact with '$recipient' as it doesn't belong to any of the membership lists: ${membershipListNames.map { it.commonName }.joinToString()}"
                 throw CashException(msg, IllegalArgumentException(msg))
             }
         }
@@ -82,5 +87,5 @@ open class CashPaymentFlow(
                          val recipient: Party,
                          val anonymous: Boolean,
                          val issuerConstraint: Set<Party> = emptySet(),
-                         val whiteListedParties: Set<Party>? = null) : AbstractRequest(amount)
+                         val membershipListNames: List<CordaX500Name>? = null) : AbstractRequest(amount)
 }
