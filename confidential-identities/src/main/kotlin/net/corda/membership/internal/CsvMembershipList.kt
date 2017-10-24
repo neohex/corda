@@ -1,10 +1,11 @@
-package net.corda.membership
+package net.corda.membership.internal
 
 import com.opencsv.CSVReaderBuilder
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.node.services.NetworkMapCache
 import net.corda.core.utilities.loggerFor
+import net.corda.membership.MembershipList
 import java.io.FileReader
 
 /**

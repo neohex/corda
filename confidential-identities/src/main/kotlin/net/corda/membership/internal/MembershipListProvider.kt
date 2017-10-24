@@ -1,7 +1,8 @@
-package net.corda.membership
+package net.corda.membership.internal
 
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.node.services.NetworkMapCache
+import net.corda.membership.MembershipList
 
 object MembershipListProvider {
 

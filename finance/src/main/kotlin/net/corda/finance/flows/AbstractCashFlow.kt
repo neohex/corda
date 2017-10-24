@@ -12,7 +12,7 @@ import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.utilities.ProgressTracker
-import net.corda.membership.MembershipListProvider
+import net.corda.membership.internal.MembershipListProvider
 import java.util.*
 
 /**
