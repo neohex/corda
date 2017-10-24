@@ -59,7 +59,9 @@ class ExplorerSimulation(val options: OptionSet) {
     private val issuers = HashMap<Currency, CordaRPCOps>()
     private val parties = ArrayList<Pair<Party, CordaRPCOps>>()
 
-    private val membershipListName = CordaX500Name("AliceBobMembershipList", "AliceBob", "Washington", "US")
+    companion object {
+        val membershipListName = CordaX500Name("AliceBobMembershipList", "AliceBob", "Washington", "US")
+    }
 
     init {
         startDemoNodes()

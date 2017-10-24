@@ -25,6 +25,7 @@ import net.corda.core.messaging.startFlow
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.utilities.getOrThrow
+import net.corda.explorer.ExplorerSimulation
 import net.corda.explorer.formatters.PartyNameFormatter
 import net.corda.explorer.model.CashTransaction
 import net.corda.explorer.model.IssuerModel
@@ -153,7 +154,8 @@ class NewTransaction : Fragment() {
             when (it) {
                 executeButton -> when (transactionTypeCB.value) {
                     CashTransaction.Issue -> IssueAndPaymentRequest(Amount.fromDecimal(amount.value, currencyChoiceBox.value), issueRef, partyBChoiceBox.value.party, notaries.first().value!!, anonymous)
-                    CashTransaction.Pay -> PaymentRequest(Amount.fromDecimal(amount.value, currencyChoiceBox.value), partyBChoiceBox.value.party, anonymous = anonymous)
+                    CashTransaction.Pay -> PaymentRequest(Amount.fromDecimal(amount.value, currencyChoiceBox.value),
+                            partyBChoiceBox.value.party, anonymous = anonymous, membershipListNames = listOf(ExplorerSimulation.membershipListName))
                     CashTransaction.Exit -> ExitRequest(Amount.fromDecimal(amount.value, currencyChoiceBox.value), issueRef)
                     else -> null
                 }
