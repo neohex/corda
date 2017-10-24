@@ -10,7 +10,7 @@ interface MembershipList {
     /**
      * @return true is a particular party belongs to a list, false otherwise
      */
-    fun contains(party: AbstractParty): Boolean
+    fun contains(party: AbstractParty): Boolean = content().contains(party)
 
     /**
      * Obtains a full content of a membership list

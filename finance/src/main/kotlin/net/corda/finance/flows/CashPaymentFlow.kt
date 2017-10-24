@@ -74,7 +74,7 @@ open class CashPaymentFlow(
         if(membershipListNames != null) {
             // Uses streams as there can be multiple membership lists and if at least one of them contains a party - there not even a
             // need to load them all.
-            val membershipLists = membershipListNames.stream().map { MembershipListProvider.obtainMembershipList(it) }
+            val membershipLists = membershipListNames.stream().map { MembershipListProvider.obtainMembershipList(it, serviceHub.networkMapCache) }
             if(!membershipLists.anyMatch { ml ->  ml.contains(recipient)}) {
                 val msg = "Cannot transact with '$recipient' as it doesn't belong to any of the membership lists: ${membershipListNames.map { it.commonName }.joinToString()}"
                 throw CashException(msg, IllegalArgumentException(msg))
