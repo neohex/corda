@@ -7,6 +7,7 @@ import net.corda.confidential.SwapIdentitiesFlow
 import net.corda.confidential.SwapIdentitiesHandler
 import net.corda.core.CordaException
 import net.corda.core.concurrent.CordaFuture
+import net.corda.core.crypto.SignedData
 import net.corda.core.flows.*
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
@@ -20,6 +21,7 @@ import net.corda.core.node.services.*
 import net.corda.core.serialization.SerializationWhitelist
 import net.corda.core.serialization.SerializeAsToken
 import net.corda.core.serialization.SingletonSerializeAsToken
+import net.corda.core.serialization.deserialize
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.core.utilities.debug
@@ -86,13 +88,15 @@ import net.corda.core.crypto.generateKeyPair as cryptoGenerateKeyPair
  * Marked as SingletonSerializeAsToken to prevent the invisible reference to AbstractNode in the ServiceHub accidentally
  * sweeping up the Node into the Kryo checkpoint serialization via any flows holding a reference to ServiceHub.
  */
+// TODO Log warning if this node is a notary but not one of the ones specified in the network parameters, both for core and custom
+
 // In theory the NodeInfo for the node should be passed in, instead, however currently this is constructed by the
 // AbstractNode. It should be possible to generate the NodeInfo outside of AbstractNode, so it can be passed in.
 abstract class AbstractNode(config: NodeConfiguration,
                             val platformClock: Clock,
                             protected val versionInfo: VersionInfo,
                             protected val cordappLoader: CordappLoader,
-                            @VisibleForTesting val busyNodeLatch: ReusableLatch = ReusableLatch()) : SingletonSerializeAsToken() {
+                            @VisibleForTesting private val busyNodeLatch: ReusableLatch = ReusableLatch()) : SingletonSerializeAsToken() {
     open val configuration = config.apply {
         require(minimumPlatformVersion <= versionInfo.platformVersion) {
             "minimumPlatformVersion cannot be greater than the node's own version"
@@ -120,6 +124,7 @@ abstract class AbstractNode(config: NodeConfiguration,
     // low-performance prototyping period.
     protected abstract val serverThread: AffinityExecutor
 
+    protected lateinit var networkParameters: NetworkParameters
     private val cordappServices = MutableClassToInstanceMap.create<SerializeAsToken>()
     private val flowFactories = ConcurrentHashMap<Class<out FlowLogic<*>>, InitiatedFlowFactory<*>>()
     protected val partyKeys = mutableSetOf<KeyPair>()
@@ -188,8 +193,9 @@ abstract class AbstractNode(config: NodeConfiguration,
 
     open fun start(): StartedNode<AbstractNode> {
         check(started == null) { "Node has already been started" }
-        initCertificate()
         log.info("Node starting up ...")
+        initCertificate()
+        readNetworkParameters()
         val schemaService = makeSchemaService()
         // Do all of this in a database transaction so anything that might need a connection has one.
         val startedImpl = initialiseDatabasePersistence(schemaService) {
@@ -469,16 +475,15 @@ abstract class AbstractNode(config: NodeConfiguration,
         val cordappProvider = CordappProviderImpl(cordappLoader, attachments)
         _services = ServiceHubInternalImpl(schemaService, transactionStorage, stateLoader, MonitoringService(metrics), cordappProvider)
         legalIdentity = obtainIdentity(notaryConfig = null)
-        // TODO  We keep only notary identity as additional legalIdentity if we run it on a node . Multiple identities need more design thinking.
-        myNotaryIdentity = getNotaryIdentity()
-        allIdentities = listOf(legalIdentity, myNotaryIdentity).filterNotNull()
+        // TODO  We keep only distributed notary identity as additional legalIdentity if we run it on a node . Multiple identities need more design thinking.
+        myNotaryIdentity = getNotaryIdentity(legalIdentity) // In case of single notary service myNotaryIdentity will be node's single identity.
+        allIdentities = setOf(legalIdentity, myNotaryIdentity).filterNotNull()
         network = makeMessagingService(legalIdentity)
         val addresses = myAddresses() // TODO There is no support for multiple IP addresses yet.
         info = NodeInfo(addresses, allIdentities, versionInfo.platformVersion, platformClock.instant().toEpochMilli())
-        val networkMapCache = services.networkMapCache
         val tokenizableServices = mutableListOf(attachments, network, services.vaultService,
                 services.keyManagementService, services.identityService, platformClock,
-                services.auditService, services.monitoringService, networkMapCache, services.schemaService,
+                services.auditService, services.monitoringService, services.networkMapCache, services.schemaService,
                 services.transactionVerifierService, services.validatedTransactions, services.contractUpgradeService,
                 services, cordappProvider, this)
         makeNetworkServices(tokenizableServices)
@@ -497,7 +502,11 @@ abstract class AbstractNode(config: NodeConfiguration,
      * Obtain the node's notary identity if it's configured to be one. If part of a distributed notary then this will be
      * the distributed identity shared across all the nodes of the cluster.
      */
-    protected fun getNotaryIdentity(): PartyAndCertificate? = configuration.notary?.let { obtainIdentity(it) }
+    protected fun getNotaryIdentity(legalIdentity: PartyAndCertificate): PartyAndCertificate? {
+        return configuration.notary?.let {
+            if (it.bftSMaRt == null && it.raft == null) legalIdentity else obtainIdentity(it)
+        }
+    }
 
     @VisibleForTesting
     protected open fun acceptableLiveFiberCountOnStop(): Int = 0
@@ -558,7 +567,7 @@ abstract class AbstractNode(config: NodeConfiguration,
         val instant = platformClock.instant()
         val expires = instant + NetworkMapService.DEFAULT_EXPIRATION_PERIOD
         val reg = NodeRegistration(info, info.serial, ADD, expires)
-        val request = RegistrationRequest(reg.toWire(services.keyManagementService, info.legalIdentitiesAndCerts.first().owningKey), network.myAddress)
+        val request = RegistrationRequest(reg.toWire(services.keyManagementService, info.legalIdentitiesAndCerts[0].owningKey), network.myAddress)
         return network.sendRequest(NetworkMapService.REGISTER_TOPIC, request, networkMapAddress)
     }
 
@@ -574,6 +583,12 @@ abstract class AbstractNode(config: NodeConfiguration,
 
     protected open fun makeKeyManagementService(identityService: IdentityService): KeyManagementService {
         return PersistentKeyManagementService(identityService, partyKeys)
+    }
+
+    private fun readNetworkParameters() {
+        val file = configuration.baseDirectory / "network-parameters"
+        networkParameters = file.readAll().deserialize<SignedData<NetworkParameters>>().verified()
+        check(configuration.minimumPlatformVersion >= networkParameters.minimumPlatformVersion)
     }
 
     abstract protected fun makeNetworkMapService(network: MessagingService, networkMapCache: NetworkMapCacheInternal): NetworkMapService
@@ -641,22 +656,16 @@ abstract class AbstractNode(config: NodeConfiguration,
     private fun obtainIdentity(notaryConfig: NotaryConfig?): PartyAndCertificate {
         val keyStore = KeyStoreWrapper(configuration.nodeKeystore, configuration.keyStorePassword)
 
-        val (id, singleName) = if (notaryConfig == null) {
-            // Node's main identity
+        val (id, singleName) = if (notaryConfig == null || (notaryConfig.bftSMaRt == null && notaryConfig.raft == null)) {
+            // Node's main identity or if it's single notary
             Pair("identity", myLegalName)
         } else {
             val notaryId = notaryConfig.run {
                 NotaryService.constructId(validating, raft != null, bftSMaRt != null, custom)
             }
-            if (notaryConfig.bftSMaRt == null && notaryConfig.raft == null) {
-                // Node's notary identity
-                Pair(notaryId, myLegalName.copy(commonName = notaryId))
-            } else {
-                // The node is part of a distributed notary whose identity must already be generated beforehand
-                Pair(notaryId, null)
-            }
+            // The node is part of a distributed notary whose identity must already be generated beforehand.
+            Pair(notaryId, null)
         }
-
         // TODO: Integrate with Key management service?
         val privateKeyAlias = "$id-private-key"
 
@@ -714,7 +723,9 @@ abstract class AbstractNode(config: NodeConfiguration,
         override val stateMachineRecordedTransactionMapping = DBTransactionMappingStorage()
         override val auditService = DummyAuditService()
         override val transactionVerifierService by lazy { makeTransactionVerifierService() }
-        override val networkMapCache by lazy { NetworkMapCacheImpl(PersistentNetworkMapCache(this@AbstractNode.database, this@AbstractNode.configuration), identityService) }
+        override val networkMapCache by lazy {
+            NetworkMapCacheImpl(PersistentNetworkMapCache(this@AbstractNode.database, this@AbstractNode.configuration, networkParameters), identityService)
+        }
         override val vaultService by lazy { makeVaultService(keyManagementService, stateLoader) }
         override val contractUpgradeService by lazy { ContractUpgradeServiceImpl() }
 

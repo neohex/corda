@@ -21,8 +21,7 @@ class IntegrationTestingTutorial {
     @Test
     fun `alice bob cash exchange example`() {
         // START 1
-        driver(startNodesInProcess = true,
-                extraCordappPackagesToScan = listOf("net.corda.finance.contracts.asset")) {
+        driver(startNodesInProcess = true, extraCordappPackagesToScan = listOf("net.corda.finance.contracts.asset")) {
             val aliceUser = User("aliceUser", "testPassword1", permissions = setOf(
                     startFlowPermission<CashIssueFlow>(),
                     startFlowPermission<CashPaymentFlow>()
@@ -32,8 +31,7 @@ class IntegrationTestingTutorial {
             ))
             val (alice, bob) = listOf(
                     startNode(providedName = ALICE.name, rpcUsers = listOf(aliceUser)),
-                    startNode(providedName = BOB.name, rpcUsers = listOf(bobUser)),
-                    startNotaryNode(DUMMY_NOTARY.name)
+                    startNode(providedName = BOB.name, rpcUsers = listOf(bobUser))
             ).transpose().getOrThrow()
             // END 1
 

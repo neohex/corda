@@ -57,10 +57,11 @@ data class NotaryConfig(val validating: Boolean,
 data class RaftConfig(val nodeAddress: NetworkHostAndPort, val clusterAddresses: List<NetworkHostAndPort>)
 
 /** @param exposeRaces for testing only, so its default is not in reference.conf but here. */
-data class BFTSMaRtConfiguration constructor(val replicaId: Int,
-                                             val clusterAddresses: List<NetworkHostAndPort>,
-                                             val debug: Boolean = false,
-                                             val exposeRaces: Boolean = false
+data class BFTSMaRtConfiguration(
+        val replicaId: Int,
+        val clusterAddresses: List<NetworkHostAndPort>,
+        val debug: Boolean = false,
+        val exposeRaces: Boolean = false
 ) {
     init {
         require(replicaId >= 0) { "replicaId cannot be negative" }
@@ -113,7 +114,6 @@ data class NodeConfigurationImpl(
         // This is a sanity feature do not remove.
         require(!useTestClock || devMode) { "Cannot use test clock outside of dev mode" }
         require(devModeOptions == null || devMode) { "Cannot use devModeOptions outside of dev mode" }
-        require(myLegalName.commonName == null) { "Common name must be null: $myLegalName" }
         require(minimumPlatformVersion >= 1) { "minimumPlatformVersion cannot be less than 1" }
     }
 }

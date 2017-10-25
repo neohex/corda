@@ -18,6 +18,7 @@ import net.corda.nodeapi.VerifierApi
 import net.corda.nodeapi.config.NodeSSLConfiguration
 import net.corda.nodeapi.config.SSLConfiguration
 import net.corda.testing.driver.*
+import net.corda.testing.node.NotarySpec
 import org.apache.activemq.artemis.api.core.SimpleString
 import org.apache.activemq.artemis.api.core.client.ActiveMQClient
 import org.apache.activemq.artemis.api.core.client.ClientProducer
@@ -76,6 +77,7 @@ fun <A> verifierDriver(
         useTestClock: Boolean = false,
         startNodesInProcess: Boolean = false,
         extraCordappPackagesToScan: List<String> = emptyList(),
+        notarySpecs: List<NotarySpec> = emptyList(),
         dsl: VerifierExposedDSLInterface.() -> A
 ) = genericDriver(
         driverDsl = VerifierDriverDSL(
@@ -87,7 +89,8 @@ fun <A> verifierDriver(
                         useTestClock = useTestClock,
                         isDebug = isDebug,
                         startNodesInProcess = startNodesInProcess,
-                        extraCordappPackagesToScan = extraCordappPackagesToScan
+                        extraCordappPackagesToScan = extraCordappPackagesToScan,
+                        notarySpecs = notarySpecs
                 )
         ),
         coerce = { it },

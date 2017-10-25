@@ -35,20 +35,20 @@ import org.junit.Test
 import rx.Observable
 
 class NodeMonitorModelTest : DriverBasedTest() {
-    lateinit var aliceNode: NodeInfo
-    lateinit var bobNode: NodeInfo
-    lateinit var notaryParty: Party
+    private lateinit var aliceNode: NodeInfo
+    private lateinit var bobNode: NodeInfo
+    private lateinit var notaryParty: Party
 
-    lateinit var rpc: CordaRPCOps
-    lateinit var rpcBob: CordaRPCOps
-    lateinit var stateMachineTransactionMapping: Observable<StateMachineTransactionMapping>
-    lateinit var stateMachineUpdates: Observable<StateMachineUpdate>
-    lateinit var stateMachineUpdatesBob: Observable<StateMachineUpdate>
-    lateinit var progressTracking: Observable<ProgressTrackingEvent>
-    lateinit var transactions: Observable<SignedTransaction>
-    lateinit var vaultUpdates: Observable<Vault.Update<ContractState>>
-    lateinit var networkMapUpdates: Observable<NetworkMapCache.MapChange>
-    lateinit var newNode: (CordaX500Name) -> NodeInfo
+    private lateinit var rpc: CordaRPCOps
+    private lateinit var rpcBob: CordaRPCOps
+    private lateinit var stateMachineTransactionMapping: Observable<StateMachineTransactionMapping>
+    private lateinit var stateMachineUpdates: Observable<StateMachineUpdate>
+    private lateinit var stateMachineUpdatesBob: Observable<StateMachineUpdate>
+    private lateinit var progressTracking: Observable<ProgressTrackingEvent>
+    private lateinit var transactions: Observable<SignedTransaction>
+    private lateinit var vaultUpdates: Observable<Vault.Update<ContractState>>
+    private lateinit var networkMapUpdates: Observable<NetworkMapCache.MapChange>
+    private lateinit var newNode: (CordaX500Name) -> NodeInfo
 
     override fun setup() = driver(extraCordappPackagesToScan = listOf("net.corda.finance")) {
         val cashUser = User("user1", "test", permissions = setOf(
@@ -57,7 +57,6 @@ class NodeMonitorModelTest : DriverBasedTest() {
                 startFlowPermission<CashExitFlow>())
         )
         val aliceNodeFuture = startNode(providedName = ALICE.name, rpcUsers = listOf(cashUser))
-        val notaryHandle = startNotaryNode(DUMMY_NOTARY.name, validating = false).getOrThrow()
         val aliceNodeHandle = aliceNodeFuture.getOrThrow()
         aliceNode = aliceNodeHandle.nodeInfo
         newNode = { nodeName -> startNode(providedName = nodeName).getOrThrow().nodeInfo }
@@ -71,7 +70,7 @@ class NodeMonitorModelTest : DriverBasedTest() {
 
         monitor.register(aliceNodeHandle.configuration.rpcAddress!!, cashUser.username, cashUser.password)
         rpc = monitor.proxyObservable.value!!
-        notaryParty = notaryHandle.nodeInfo.legalIdentities[1]
+        notaryParty = rpc.notaryPartyFromX500Name(DUMMY_NOTARY.name)!!
 
         val bobNodeHandle = startNode(providedName = BOB.name, rpcUsers = listOf(cashUser)).getOrThrow()
         bobNode = bobNodeHandle.nodeInfo

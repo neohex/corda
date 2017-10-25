@@ -28,17 +28,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ValidatingNotaryServiceTests {
-    lateinit var mockNet: MockNetwork
-    lateinit var notaryServices: StartedNodeServices
-    lateinit var aliceServices: StartedNodeServices
-    lateinit var notary: Party
-    lateinit var alice: Party
+    private lateinit var mockNet: MockNetwork
+    private lateinit var notaryServices: StartedNodeServices
+    private lateinit var aliceServices: StartedNodeServices
+    private lateinit var notary: Party
+    private lateinit var alice: Party
 
     @Before
     fun setup() {
         mockNet = MockNetwork(cordappPackages = listOf("net.corda.testing.contracts"))
-        val notaryNode = mockNet.createNotaryNode()
         val aliceNode = mockNet.createNode(MockNodeParameters(legalName = ALICE_NAME))
+        val notaryNode = mockNet.notaryNodes[0]
         mockNet.runNetwork() // Clear network map registration messages
         notaryServices = notaryNode.services
         aliceServices = aliceNode.services
@@ -97,7 +97,7 @@ class ValidatingNotaryServiceTests {
         return future
     }
 
-    fun issueState(serviceHub: ServiceHub, identity: Party): StateAndRef<*> {
+    private fun issueState(serviceHub: ServiceHub, identity: Party): StateAndRef<*> {
         val tx = DummyContract.generateInitial(Random().nextInt(), notary, identity.ref(0))
         val signedByNode = serviceHub.signInitialTransaction(tx)
         val stx = notaryServices.addSignature(signedByNode, notary.owningKey)

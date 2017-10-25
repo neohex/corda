@@ -5,14 +5,15 @@ import net.corda.core.crypto.generateKeyPair
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
 import net.corda.core.internal.cert
+import net.corda.core.internal.createDirectories
 import net.corda.core.internal.div
 import net.corda.core.utilities.loggerFor
 import net.corda.core.utilities.trace
-import java.nio.file.Files
 import java.nio.file.Path
 
 object ServiceIdentityGenerator {
     private val log = loggerFor<ServiceIdentityGenerator>()
+//    private val WHITESPACE = "\\s++".toRegex()
 
     /**
      * Generates signing key pairs and a common distributed service identity for a set of nodes.
@@ -20,14 +21,13 @@ object ServiceIdentityGenerator {
      * This method should be called *before* any of the nodes are started.
      *
      * @param dirs List of node directories to place the generated identity and key pairs in.
-     * @param serviceId The service id of the distributed service.
      * @param serviceName The legal name of the distributed service, with service id as CN.
      * @param threshold The threshold for the generated group [CompositeKey].
      */
-    // TODO: This needs to write out to the key store, not just files on disk
     fun generateToDisk(dirs: List<Path>,
                        serviceName: CordaX500Name,
-                       threshold: Int = 1): Party {
+                       threshold: Int = 1,
+                       serviceId: String): Party {
         log.trace { "Generating a group identity \"serviceName\" for nodes: ${dirs.joinToString()}" }
         val keyPairs = (1..dirs.size).map { generateKeyPair() }
         val notaryKey = CompositeKey.Builder().addKeys(keyPairs.map { it.public }).build(threshold)
@@ -39,13 +39,39 @@ object ServiceIdentityGenerator {
         keyPairs.zip(dirs) { keyPair, dir ->
             val serviceKeyCert = X509Utilities.createCertificate(CertificateType.CLIENT_CA, issuer.certificate, issuer.keyPair, serviceName, keyPair.public)
             val compositeKeyCert = X509Utilities.createCertificate(CertificateType.CLIENT_CA, issuer.certificate, issuer.keyPair, serviceName, notaryKey)
-            val certPath = Files.createDirectories(dir / "certificates") / "distributedService.jks"
+            val certPath = (dir / "certificates").createDirectories() / "distributedService.jks"
             val keystore = loadOrCreateKeyStore(certPath, "cordacadevpass")
-            val serviceId = serviceName.commonName
             keystore.setCertificateEntry("$serviceId-composite-key", compositeKeyCert.cert)
             keystore.setKeyEntry("$serviceId-private-key", keyPair.private, "cordacadevkeypass".toCharArray(), arrayOf(serviceKeyCert.cert, issuer.certificate.cert, rootCert))
             keystore.save(certPath, "cordacadevpass")
         }
         return Party(serviceName, notaryKey)
     }
+
+//    fun generateNotaryIdentities(notaries: List<NotaryParameters>, baseDirectory: Path): List<Party> {
+//        return notaries.mapIndexed { idx, notary ->
+//            when (notary) {
+//                is NotaryParameters.Single -> {
+//                    val dir = baseDirectory(baseDirectory, notary.notaryName)
+//                    ServiceIdentityGenerator.generateToDisk(dirs = listOf(dir), serviceName = notary.notaryName, threshold = 1)
+//                }
+//                is NotaryParameters.Cluster -> {
+//                    val serviceId = notary.run {
+//                        NotaryService.constructId(isValidating, raft, bft)
+//                    }
+//                    ServiceIdentityGenerator.generateToDisk(
+//                            distributedNotaryNodeNames(notary.notaryName, notary.clusterSize).map { nodeName -> baseDirectory(baseDirectory, nodeName) },
+//                            notary.notaryName, serviceId = serviceId)
+//                }
+//            }
+//        }
+//    }
+
+//    fun distributedNotaryNodeNames(legalNotaryName: CordaX500Name, clusterSize: Int): List<CordaX500Name> {
+//        return (0 until clusterSize).map { legalNotaryName.copy(organisation = "${legalNotaryName.organisation}-$it") }
+//    }
+
+//    fun baseDirectory(mainDirectory: Path, nodeName: CordaX500Name): Path {
+//        return mainDirectory / nodeName.organisation.replace(WHITESPACE, "")
+//    }
 }

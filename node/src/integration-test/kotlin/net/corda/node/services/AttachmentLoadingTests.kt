@@ -7,6 +7,7 @@ import net.corda.core.flows.FlowLogic
 import net.corda.core.flows.UnexpectedFlowEndException
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
+import net.corda.core.internal.concurrent.map
 import net.corda.core.internal.concurrent.transpose
 import net.corda.core.internal.createDirectories
 import net.corda.core.internal.div
@@ -51,8 +52,7 @@ class AttachmentLoadingTests : TestDependencyInjectionBase() {
 
         val bankAName = CordaX500Name("BankA", "Zurich", "CH")
         val bankBName = CordaX500Name("BankB", "Zurich", "CH")
-        val notaryName = CordaX500Name("Notary", "Zurich", "CH")
-        val flowInitiatorClass =
+        val flowInitiatorClass: Class<out FlowLogic<*>> =
                 Class.forName("net.corda.finance.contracts.isolated.IsolatedDummyFlow\$Initiator", true, URLClassLoader(arrayOf(isolatedJAR)))
                         .asSubclass(FlowLogic::class.java)
 
@@ -61,7 +61,7 @@ class AttachmentLoadingTests : TestDependencyInjectionBase() {
             val nodes = listOf(
                     startNode(providedName = bankAName, rpcUsers = listOf(adminUser)),
                     startNode(providedName = bankBName, rpcUsers = listOf(adminUser)),
-                    startNotaryNode(providedName = notaryName, rpcUsers = listOf(adminUser), validating = false)
+                    notaries[0].nodeHandles.map { it[0] }
             ).transpose().getOrThrow()   // Wait for all nodes to start up.
             nodes.forEach { it.rpc.waitUntilNetworkReady().getOrThrow() }
             return nodes

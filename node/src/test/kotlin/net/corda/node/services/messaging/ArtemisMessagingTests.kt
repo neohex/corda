@@ -13,12 +13,13 @@ import net.corda.node.services.api.MonitoringService
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.node.services.config.configureWithDevSSLCertificate
 import net.corda.node.services.network.NetworkMapCacheImpl
-import net.corda.node.services.network.PersistentNetworkMapCache
 import net.corda.node.services.network.NetworkMapService
+import net.corda.node.services.network.PersistentNetworkMapCache
 import net.corda.node.services.transactions.PersistentUniquenessProvider
 import net.corda.node.utilities.AffinityExecutor.ServiceAffinityExecutor
 import net.corda.node.utilities.CordaPersistence
 import net.corda.node.utilities.configureDatabase
+import net.corda.node.utilities.testNetworkParameters
 import net.corda.testing.*
 import net.corda.testing.node.MockServices.Companion.MOCK_VERSION_INFO
 import net.corda.testing.node.MockServices.Companion.makeTestDataSourceProperties
@@ -44,22 +45,22 @@ class ArtemisMessagingTests : TestDependencyInjectionBase() {
     @JvmField
     val temporaryFolder = TemporaryFolder()
 
-    val serverPort = freePort()
-    val rpcPort = freePort()
-    val topic = "platform.self"
-    val identity = generateKeyPair()
+    private val serverPort = freePort()
+    private val rpcPort = freePort()
+    private val topic = "platform.self"
+    private val identity = generateKeyPair()
 
-    lateinit var config: NodeConfiguration
-    lateinit var database: CordaPersistence
-    lateinit var userService: RPCUserService
-    lateinit var networkMapRegistrationFuture: CordaFuture<Unit>
+    private lateinit var config: NodeConfiguration
+    private lateinit var database: CordaPersistence
+    private lateinit var userService: RPCUserService
+    private lateinit var networkMapRegistrationFuture: CordaFuture<Unit>
 
-    var messagingClient: NodeMessagingClient? = null
-    var messagingServer: ArtemisMessagingServer? = null
+    private var messagingClient: NodeMessagingClient? = null
+    private var messagingServer: ArtemisMessagingServer? = null
 
-    lateinit var networkMapCache: NetworkMapCacheImpl
+    private lateinit var networkMapCache: NetworkMapCacheImpl
 
-    val rpcOps = object : RPCOps {
+    private val rpcOps = object : RPCOps {
         override val protocolVersion: Int get() = throw UnsupportedOperationException()
     }
 
@@ -73,7 +74,7 @@ class ArtemisMessagingTests : TestDependencyInjectionBase() {
         LogHelper.setLevel(PersistentUniquenessProvider::class)
         database = configureDatabase(makeTestDataSourceProperties(), makeTestDatabaseProperties(), ::makeTestIdentityService)
         networkMapRegistrationFuture = doneFuture(Unit)
-        networkMapCache = NetworkMapCacheImpl(PersistentNetworkMapCache(database, config), rigorousMock())
+        networkMapCache = NetworkMapCacheImpl(PersistentNetworkMapCache(database, config, testNetworkParameters(emptyList())), rigorousMock())
     }
 
     @After

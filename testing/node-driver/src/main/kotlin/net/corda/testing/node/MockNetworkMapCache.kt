@@ -10,6 +10,7 @@ import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.node.services.network.PersistentNetworkMapCache
 import net.corda.node.utilities.CordaPersistence
+import net.corda.node.utilities.testNetworkParameters
 import net.corda.testing.getTestPartyAndCertificate
 import rx.Observable
 import rx.subjects.PublishSubject
@@ -18,7 +19,10 @@ import java.math.BigInteger
 /**
  * Network map cache with no backing map service.
  */
-class MockNetworkMapCache(database: CordaPersistence, configuration: NodeConfiguration) : PersistentNetworkMapCache(database, configuration) {
+class MockNetworkMapCache(
+        database: CordaPersistence,
+        configuration: NodeConfiguration
+) : PersistentNetworkMapCache(database, configuration, testNetworkParameters(emptyList())) {
     private companion object {
         val BANK_C = getTestPartyAndCertificate(CordaX500Name(organisation = "Bank C", locality = "London", country = "GB"), entropyToKeyPair(BigInteger.valueOf(1000)).public)
         val BANK_D = getTestPartyAndCertificate(CordaX500Name(organisation = "Bank D", locality = "London", country = "GB"), entropyToKeyPair(BigInteger.valueOf(2000)).public)

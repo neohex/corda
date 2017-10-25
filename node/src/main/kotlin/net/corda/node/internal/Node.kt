@@ -263,7 +263,8 @@ open class Node(override val configuration: NodeConfiguration,
     }
 
     override fun makeNetworkMapService(network: MessagingService, networkMapCache: NetworkMapCacheInternal): NetworkMapService {
-        return PersistentNetworkMapService(network, networkMapCache, configuration.minimumPlatformVersion)
+        return PersistentNetworkMapService(services.networkService, services.networkMapCache, services.keyManagementService,
+                services.myInfo.legalIdentities.first().owningKey, configuration.minimumPlatformVersion, networkParameters)
     }
 
     /**

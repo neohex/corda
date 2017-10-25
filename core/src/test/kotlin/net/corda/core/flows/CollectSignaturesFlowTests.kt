@@ -39,7 +39,6 @@ class CollectSignaturesFlowTests {
     @Before
     fun setup() {
         mockNet = MockNetwork(cordappPackages = cordappPackages)
-        val notaryNode = mockNet.createNotaryNode()
         aliceNode = mockNet.createPartyNode(ALICE.name)
         bobNode = mockNet.createPartyNode(BOB.name)
         charlieNode = mockNet.createPartyNode(CHARLIE.name)
@@ -47,7 +46,7 @@ class CollectSignaturesFlowTests {
         alice = aliceNode.info.singleIdentity()
         bob = bobNode.info.singleIdentity()
         charlie = charlieNode.info.singleIdentity()
-        notary = notaryNode.services.getDefaultNotary()
+        notary = aliceNode.services.getDefaultNotary()
     }
 
     @After

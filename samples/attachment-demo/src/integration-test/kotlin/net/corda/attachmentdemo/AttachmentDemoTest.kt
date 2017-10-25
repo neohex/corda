@@ -5,7 +5,6 @@ import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
 import net.corda.testing.DUMMY_BANK_A
 import net.corda.testing.DUMMY_BANK_B
-import net.corda.testing.DUMMY_NOTARY
 import net.corda.testing.driver.PortAllocation
 import net.corda.testing.driver.driver
 import org.junit.Test
@@ -20,8 +19,7 @@ class AttachmentDemoTest {
             val demoUser = listOf(User("demo", "demo", setOf(startFlowPermission<AttachmentDemoFlow>())))
             val (nodeA, nodeB) = listOf(
                     startNode(providedName = DUMMY_BANK_A.name, rpcUsers = demoUser, maximumHeapSize = "1g"),
-                    startNode(providedName = DUMMY_BANK_B.name, rpcUsers = demoUser, maximumHeapSize = "1g"),
-                    startNotaryNode(DUMMY_NOTARY.name, validating = false))
+                    startNode(providedName = DUMMY_BANK_B.name, rpcUsers = demoUser, maximumHeapSize = "1g"))
                     .map { it.getOrThrow() }
             startWebserver(nodeB).getOrThrow()
 
