@@ -6,6 +6,7 @@ import net.corda.core.contracts.Amount
 import net.corda.core.contracts.InsufficientBalanceException
 import net.corda.core.flows.StartableByRPC
 import net.corda.core.identity.AnonymousParty
+import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.TransactionBuilder
@@ -28,15 +29,21 @@ open class CashPaymentFlow(
         val recipient: Party,
         val anonymous: Boolean,
         progressTracker: ProgressTracker,
-        val issuerConstraint: Set<Party> = emptySet()) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+        val issuerConstraint: Set<Party> = emptySet()) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker, allowedMembershipNames) {
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party) : this(amount, recipient, true, tracker())
     /** A straightforward constructor that constructs spends using cash states of any issuer. */
     constructor(amount: Amount<Currency>, recipient: Party, anonymous: Boolean) : this(amount, recipient, anonymous, tracker())
     constructor(request: PaymentRequest) : this(request.amount, request.recipient, request.anonymous, tracker(), request.issuerConstraint)
 
+    companion object {
+        val allowedMembershipNames = listOf(CordaX500Name("AliceBobMembershipList", "AliceBob", "Washington", "US"))
+    }
+
     @Suspendable
     override fun call(): AbstractCashFlow.Result {
+        listOf(ourIdentity, recipient).checkAllInMembershipLists()
+
         progressTracker.currentStep = GENERATING_ID
         val txIdentities = if (anonymous) {
             subFlow(SwapIdentitiesFlow(recipient))

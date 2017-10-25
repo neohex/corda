@@ -19,6 +19,9 @@ dependencies {
     // Quasar, for suspendable fibres.
     compileOnly "co.paralleluniverse:quasar-core:$quasar_version:jdk8"
 
+    // For CSV parsing.
+    compile "com.opencsv:opencsv:$opencsv_version"
+
     testCompile "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
     testCompile "junit:junit:$junit_version"
 

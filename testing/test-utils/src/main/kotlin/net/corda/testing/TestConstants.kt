@@ -67,6 +67,12 @@ val DUMMY_REGULATOR_KEY: KeyPair by lazy { entropyToKeyPair(BigInteger.valueOf(1
 /** Dummy regulator for tests and simulations */
 val DUMMY_REGULATOR: Party get() = Party(CordaX500Name(organisation = "Regulator A", locality = "Paris", country = "FR"), DUMMY_REGULATOR_KEY.public)
 
+
+val OUTSIDER_KEY: KeyPair by lazy { entropyToKeyPair(BigInteger.valueOf(80)) }
+/** Dummy individual identity for tests and simulations */
+val OUTSIDER_IDENTITY: PartyAndCertificate get() = getTestPartyAndCertificate(OUTSIDER)
+val OUTSIDER: Party get() = Party(CordaX500Name(organisation = "Outsider Ltd.", locality = "Umm Durman", country = "SD"), OUTSIDER_KEY.public)
+
 val DEV_CA: CertificateAndKeyPair by lazy {
     // TODO: Should be identity scheme
     val caKeyStore = loadKeyStore(ClassLoader.getSystemResourceAsStream("net/corda/node/internal/certificates/cordadevcakeys.jks"), "cordacadevpass")

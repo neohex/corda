@@ -7,6 +7,7 @@ import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.utilities.ProgressTracker
+import net.corda.finance.flows.CashPaymentFlow.Companion.allowedMembershipNames
 import java.util.*
 
 /**
@@ -17,7 +18,7 @@ import java.util.*
  * and immediately transfer it, so impact of this limitation is considered minimal.
  *
  * @param amount the amount of currency to issue.
- * @param issuerBankPartyRef a reference to put on the issued currency.
+ * @param issueRef a reference to put on the issued currency.
  * @param notary the notary to set on the output states.
  */
 @StartableByRPC
@@ -26,7 +27,7 @@ class CashIssueAndPaymentFlow(val amount: Amount<Currency>,
                               val recipient: Party,
                               val anonymous: Boolean,
                               val notary: Party,
-                              progressTracker: ProgressTracker) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker) {
+                              progressTracker: ProgressTracker) : AbstractCashFlow<AbstractCashFlow.Result>(progressTracker, allowedMembershipNames) {
     constructor(amount: Amount<Currency>,
                 issueRef: OpaqueBytes,
                 recipient: Party,
@@ -36,6 +37,7 @@ class CashIssueAndPaymentFlow(val amount: Amount<Currency>,
 
     @Suspendable
     override fun call(): Result {
+        listOf(recipient).checkAllInMembershipLists()
         subFlow(CashIssueFlow(amount, issueRef, notary))
         return subFlow(CashPaymentFlow(amount, recipient, anonymous))
     }
