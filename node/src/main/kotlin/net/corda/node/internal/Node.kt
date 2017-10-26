@@ -26,6 +26,7 @@ import net.corda.node.services.messaging.ArtemisMessagingServer.Companion.ipDete
 import net.corda.node.services.messaging.ArtemisMessagingServer.Companion.ipDetectResponseProperty
 import net.corda.node.services.messaging.MessagingService
 import net.corda.node.services.messaging.NodeMessagingClient
+import net.corda.node.services.network.HTTPNetworkMapClient
 import net.corda.node.services.network.NetworkMapService
 import net.corda.node.services.network.PersistentNetworkMapService
 import net.corda.node.utilities.AddressUtils
@@ -46,6 +47,7 @@ import org.apache.activemq.artemis.api.core.client.ClientMessage
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.net.URL
 import java.time.Clock
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -144,6 +146,8 @@ open class Node(override val configuration: NodeConfiguration,
 
     private lateinit var userService: RPCUserService
 
+    private val networkMapClient = HTTPNetworkMapClient(URL("${configuration.certificateSigningService}/network-map"))
+
     override fun makeMessagingService(legalIdentity: PartyAndCertificate): MessagingService {
         userService = RPCUserServiceImpl(configuration.rpcUsers)
 
@@ -209,6 +213,8 @@ open class Node(override val configuration: NodeConfiguration,
      * - Once the message is received the session is closed and the queue deleted.
      */
     private fun discoverPublicHost(serverAddress: NetworkHostAndPort): String? {
+
+        // TODO rest client
         log.trace { "Trying to detect public hostname through the Network Map Service at $serverAddress" }
         val tcpTransport = ArtemisTcpTransport.tcpTransport(ConnectionDirection.Outbound(), serverAddress, configuration)
         val locator = ActiveMQClient.createServerLocatorWithoutHA(tcpTransport).apply {

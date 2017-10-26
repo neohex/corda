@@ -1,6 +1,7 @@
 package net.corda.node.services.network
 
 import net.corda.core.concurrent.CordaFuture
+import net.corda.core.crypto.SecureHash
 import net.corda.core.crypto.toStringShort
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.CordaX500Name
@@ -57,15 +58,16 @@ class NetworkMapCacheImpl(networkMapCacheBase: NetworkMapCacheBaseInternal, priv
  * Extremely simple in-memory cache of the network map.
  */
 @ThreadSafe
-open class PersistentNetworkMapCache(private val database: CordaPersistence, configuration: NodeConfiguration) : SingletonSerializeAsToken(), NetworkMapCacheBaseInternal {
+open class PersistentNetworkMapCache(private val database: CordaPersistence, networkMapClient:NetworkMapClient, configuration: NodeConfiguration) : SingletonSerializeAsToken(), NetworkMapCacheBaseInternal {
     companion object {
         val logger = loggerFor<PersistentNetworkMapCache>()
     }
 
     // TODO Small explanation, partyNodes and registeredNodes is left in memory as it was before, because it will be removed in
     //  next PR that gets rid of services. These maps are used only for queries by service.
-    protected val registeredNodes: MutableMap<PublicKey, NodeInfo> = Collections.synchronizedMap(HashMap())
-    protected val partyNodes: MutableList<NodeInfo> get() = registeredNodes.map { it.value }.toMutableList()
+    private val registeredNodes: MutableMap<PublicKey, SecureHash> = Collections.synchronizedMap(HashMap())
+    private val nodeInfoMap = mutableMapOf<SecureHash, NodeInfo>()
+    protected val partyNodes: List<NodeInfo> get() = nodeInfoMap.values.toList()
     private val _changed = PublishSubject.create<MapChange>()
     // We use assignment here so that multiple subscribers share the same wrapped Observable.
     override val changed: Observable<MapChange> = _changed.wrapWithDatabaseTransaction()
@@ -94,32 +96,31 @@ open class PersistentNetworkMapCache(private val database: CordaPersistence, con
                     .sortedBy { it.name.toString() }
         }
 
-    private val nodeInfoSerializer = NodeInfoWatcher(configuration.baseDirectory,
-            configuration.additionalNodeInfoPollingFrequencyMsec)
-
     init {
-        loadFromFiles()
-        database.transaction { loadFromDB(session) }
-    }
+        logger.info("Loading network map from files...")
+        NodeInfoWatcher(configuration.baseDirectory, configuration.additionalNodeInfoPollingFrequencyMsec)
+                .nodeInfoUpdates()
+                .subscribe { node -> addNode(node) }
 
-    private fun loadFromFiles() {
-        logger.info("Loading network map from files..")
-        nodeInfoSerializer.nodeInfoUpdates().subscribe { node -> addNode(node) }
+        database.transaction { loadFromDB(session) }
+
+        logger.info("Downloading network map from server...")
+        networkMapClient.networkMapObservable.subscribe {
+            // Process removed Nodes.
+            nodeInfoMap.keys.subtract(it).mapNotNull { nodeInfoMap[it] }.forEach(this::removeNode)
+            // Process new nodes.
+            it.subtract(nodeInfoMap.keys).mapNotNull { networkMapClient.getNodeInfo(it) }.forEach(this::addNode)
+        }
     }
 
     override fun getPartyInfo(party: Party): PartyInfo? {
         val nodes = database.transaction { queryByIdentityKey(session, party.owningKey) }
-        if (nodes.size == 1 && nodes[0].isLegalIdentity(party)) {
-            return PartyInfo.SingleNode(party, nodes[0].addresses)
+        if (nodes.size == 1 && nodes.first().isLegalIdentity(party)) {
+            return PartyInfo.SingleNode(party, nodes.first().addresses)
         }
-        for (node in nodes) {
-            for (identity in node.legalIdentities) {
-                if (identity == party) {
-                    return PartyInfo.DistributedNode(party)
-                }
-            }
-        }
-        return null
+        return if (nodes.flatMap { it.legalIdentities }.contains(party)) {
+            PartyInfo.DistributedNode(party)
+        } else null
     }
 
     override fun getNodeByLegalName(name: CordaX500Name): NodeInfo? = getNodesByLegalName(name).firstOrNull()
@@ -140,27 +141,34 @@ open class PersistentNetworkMapCache(private val database: CordaPersistence, con
     override fun addNode(node: NodeInfo) {
         logger.info("Adding node with info: $node")
         synchronized(_changed) {
-            registeredNodes[node.legalIdentities.first().owningKey]?.let {
+            nodeInfoMap[registeredNodes[node.legalIdentities.first().owningKey]]?.let {
                 if (it.serial > node.serial) {
                     logger.info("Discarding older nodeInfo for ${node.legalIdentities.first().name}")
                     return
                 }
             }
-            val previousNode = registeredNodes.put(node.legalIdentities.first().owningKey, node) // TODO hack... we left the first one as special one
-            if (previousNode == null) {
-                logger.info("No previous node found")
-                database.transaction {
-                    updateInfoDB(node)
-                    changePublisher.onNext(MapChange.Added(node))
+            val newNodeHash = node.serialize().hash
+            val previousNodeHash = registeredNodes.put(node.legalIdentities.first().owningKey, newNodeHash) // TODO hack... we left the first one as special one
+            when {
+                previousNodeHash == null -> {
+                    logger.info("No previous node found")
+                    nodeInfoMap.put(newNodeHash, node)
+                    database.transaction {
+                        updateInfoDB(node)
+                        changePublisher.onNext(MapChange.Added(node))
+                    }
                 }
-            } else if (previousNode != node) {
-                logger.info("Previous node was found as: $previousNode")
-                database.transaction {
-                    updateInfoDB(node)
-                    changePublisher.onNext(MapChange.Modified(node, previousNode))
+                previousNodeHash != newNodeHash -> {
+                    val previousNode = nodeInfoMap[previousNodeHash]!!
+                    logger.info("Previous node was found as: $previousNode")
+                    nodeInfoMap.remove(newNodeHash)
+                    nodeInfoMap.put(newNodeHash, node)
+                    database.transaction {
+                        updateInfoDB(node)
+                        changePublisher.onNext(MapChange.Modified(node, previousNode))
+                    }
                 }
-            } else {
-                logger.info("Previous node was identical to incoming one - doing nothing")
+                else -> logger.info("Previous node was identical to incoming one - doing nothing")
             }
         }
         _loadDBSuccess = true // This is used in AbstractNode to indicate that node is ready.
@@ -171,7 +179,7 @@ open class PersistentNetworkMapCache(private val database: CordaPersistence, con
     override fun removeNode(node: NodeInfo) {
         logger.info("Removing node with info: $node")
         synchronized(_changed) {
-            registeredNodes.remove(node.legalIdentities.first().owningKey)
+            nodeInfoMap.remove(registeredNodes.remove(node.legalIdentities.first().owningKey))
             database.transaction {
                 removeInfoDB(session, node)
                 changePublisher.onNext(MapChange.Removed(node))
