@@ -1,13 +1,13 @@
 package net.corda.testing
 
 import net.corda.client.rpc.internal.KryoClientSerializationScheme
+import net.corda.client.rpc.internal.AMQPClientSerializationScheme
 import net.corda.core.crypto.SecureHash
 import net.corda.core.serialization.*
 import net.corda.core.utilities.ByteSequence
 import net.corda.node.serialization.KryoServerSerializationScheme
+import net.corda.node.serialization.AMQPServerSerializationScheme
 import net.corda.nodeapi.internal.serialization.*
-import net.corda.nodeapi.internal.serialization.amqp.AMQPClientSerializationScheme
-import net.corda.nodeapi.internal.serialization.amqp.AMQPServerSerializationScheme
 
 inline fun <T> withTestSerialization(block: () -> T): T {
     initialiseTestSerialization()
@@ -71,8 +71,8 @@ fun initialiseTestSerialization() {
     }
 
     (SerializationDefaults.P2P_CONTEXT as TestSerializationContext).delegate = if (isAmqpEnabled()) AMQP_P2P_CONTEXT else KRYO_P2P_CONTEXT
-    (SerializationDefaults.RPC_SERVER_CONTEXT as TestSerializationContext).delegate = KRYO_RPC_SERVER_CONTEXT
-    (SerializationDefaults.RPC_CLIENT_CONTEXT as TestSerializationContext).delegate = KRYO_RPC_CLIENT_CONTEXT
+    (SerializationDefaults.RPC_SERVER_CONTEXT as TestSerializationContext).delegate = if (isAmqpEnabled()) AMQP_RPC_SERVER_CONTEXT else KRYO_RPC_SERVER_CONTEXT
+    (SerializationDefaults.RPC_CLIENT_CONTEXT as TestSerializationContext).delegate = if (isAmqpEnabled()) AMQP_RPC_CLIENT_CONTEXT else KRYO_RPC_CLIENT_CONTEXT
     (SerializationDefaults.STORAGE_CONTEXT as TestSerializationContext).delegate = if (isAmqpEnabled()) AMQP_STORAGE_CONTEXT else KRYO_STORAGE_CONTEXT
     (SerializationDefaults.CHECKPOINT_CONTEXT as TestSerializationContext).delegate = KRYO_CHECKPOINT_CONTEXT
 }

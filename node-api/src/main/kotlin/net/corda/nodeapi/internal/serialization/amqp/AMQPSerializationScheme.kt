@@ -67,10 +67,10 @@ abstract class AbstractAMQPSerializationScheme : SerializationScheme {
 
     private val serializerFactoriesForContexts = ConcurrentHashMap<Pair<ClassWhitelist, ClassLoader>, SerializerFactory>()
 
-    protected abstract fun rpcClientSerializerFactory(context: SerializationContext): SerializerFactory
-    protected abstract fun rpcServerSerializerFactory(context: SerializationContext): SerializerFactory
+    abstract fun rpcClientSerializerFactory(context: SerializationContext): SerializerFactory
+    abstract fun rpcServerSerializerFactory(context: SerializationContext): SerializerFactory
 
-    private fun getSerializerFactory(context: SerializationContext): SerializerFactory {
+    fun getSerializerFactory(context: SerializationContext): SerializerFactory {
         return serializerFactoriesForContexts.computeIfAbsent(Pair(context.whitelist, context.deserializationClassLoader)) {
             when (context.useCase) {
                 SerializationContext.UseCase.Checkpoint ->
@@ -97,37 +97,4 @@ abstract class AbstractAMQPSerializationScheme : SerializationScheme {
     protected fun canDeserializeVersion(byteSequence: ByteSequence): Boolean = AMQP_ENABLED && byteSequence == AmqpHeaderV1_0
 }
 
-// TODO: This will eventually cover server RPC as well and move to node module, but for now this is not implemented
-class AMQPServerSerializationScheme : AbstractAMQPSerializationScheme() {
-    override fun rpcClientSerializerFactory(context: SerializationContext): SerializerFactory {
-        throw UnsupportedOperationException()
-    }
-
-    override fun rpcServerSerializerFactory(context: SerializationContext): SerializerFactory {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun canDeserializeVersion(byteSequence: ByteSequence, target: SerializationContext.UseCase): Boolean {
-        return (canDeserializeVersion(byteSequence) &&
-                (target == SerializationContext.UseCase.P2P || target == SerializationContext.UseCase.Storage))
-    }
-
-}
-
-// TODO: This will eventually cover client RPC as well and move to client module, but for now this is not implemented
-class AMQPClientSerializationScheme : AbstractAMQPSerializationScheme() {
-    override fun rpcClientSerializerFactory(context: SerializationContext): SerializerFactory {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun rpcServerSerializerFactory(context: SerializationContext): SerializerFactory {
-        throw UnsupportedOperationException()
-    }
-
-    override fun canDeserializeVersion(byteSequence: ByteSequence, target: SerializationContext.UseCase): Boolean {
-        return (canDeserializeVersion(byteSequence) &&
-                (target == SerializationContext.UseCase.P2P || target == SerializationContext.UseCase.Storage))
-    }
-
-}
 

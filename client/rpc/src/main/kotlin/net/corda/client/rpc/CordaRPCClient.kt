@@ -1,6 +1,6 @@
 package net.corda.client.rpc
 
-import net.corda.client.rpc.internal.KryoClientSerializationScheme
+import net.corda.client.rpc.internal.AMQPClientSerializationScheme
 import net.corda.client.rpc.internal.RPCClient
 import net.corda.client.rpc.internal.RPCClientConfiguration
 import net.corda.core.messaging.CordaRPCOps
@@ -8,7 +8,6 @@ import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.nodeapi.ArtemisTcpTransport.Companion.tcpTransport
 import net.corda.nodeapi.ConnectionDirection
 import net.corda.nodeapi.internal.serialization.AMQP_RPC_CLIENT_CONTEXT
-import net.corda.nodeapi.internal.serialization.KRYO_RPC_CLIENT_CONTEXT
 import java.time.Duration
 
 /**
@@ -72,14 +71,13 @@ class CordaRPCClient @JvmOverloads constructor(
 ) {
     init {
         // TODO: allow clients to have serialization factory etc injected and align with RPC protocol version?
-        KryoClientSerializationScheme.initialiseSerialization()
+        AMQPClientSerializationScheme.initialiseSerialization()
     }
 
     private val rpcClient = RPCClient<CordaRPCOps>(
             tcpTransport(ConnectionDirection.Outbound(), hostAndPort, config = null),
             configuration.toRpcClientConfiguration(),
-            //AMQP_RPC_CLIENT_CONTEXT
-            KRYO_RPC_CLIENT_CONTEXT
+            AMQP_RPC_CLIENT_CONTEXT
     )
 
     /**
