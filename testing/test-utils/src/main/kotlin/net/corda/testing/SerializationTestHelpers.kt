@@ -6,6 +6,8 @@ import net.corda.core.serialization.*
 import net.corda.core.utilities.ByteSequence
 import net.corda.node.serialization.KryoServerSerializationScheme
 import net.corda.nodeapi.internal.serialization.*
+import net.corda.nodeapi.internal.serialization.amqp.AMQPClientSerializationScheme
+import net.corda.nodeapi.internal.serialization.amqp.AMQPServerSerializationScheme
 
 inline fun <T> withTestSerialization(block: () -> T): T {
     initialiseTestSerialization()
