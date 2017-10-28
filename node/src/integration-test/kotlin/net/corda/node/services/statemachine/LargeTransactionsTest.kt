@@ -8,7 +8,7 @@ import net.corda.core.messaging.startFlow
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.testing.BOB
 import net.corda.testing.DUMMY_NOTARY
-import net.corda.testing.aliceBobAndNotary
+import net.corda.testing.driver.aliceBobAndNotary
 import net.corda.testing.contracts.DummyContract
 import net.corda.testing.contracts.DummyState
 import net.corda.testing.driver.driver

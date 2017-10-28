@@ -1,12 +1,14 @@
 @file:JvmName("DriverConstants")
 
-package net.corda.testing
+package net.corda.testing.driver
 
 import net.corda.core.identity.Party
 import net.corda.core.internal.concurrent.transpose
 import net.corda.core.messaging.CordaRPCOps
 import net.corda.nodeapi.User
-import net.corda.testing.driver.DriverDSLExposedInterface
+import net.corda.testing.ALICE
+import net.corda.testing.BOB
+import net.corda.testing.DUMMY_NOTARY
 
 //
 // Extensions to the Driver DSL to auto-manufacture nodes by name.

@@ -23,6 +23,10 @@ import net.corda.nodeapi.User
 import net.corda.testing.*
 import net.corda.testing.contracts.DummyContract
 import net.corda.testing.contracts.DummyContractV2
+import net.corda.testing.driver.internal.RPCDriverExposedDSLInterface
+import net.corda.testing.driver.internal.rpcDriver
+import net.corda.testing.driver.internal.rpcTestUser
+import net.corda.testing.driver.internal.startRpcClient
 import net.corda.testing.node.MockNetwork
 import org.junit.After
 import org.junit.Before

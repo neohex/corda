@@ -9,7 +9,7 @@ import org.junit.Test;
 import static net.corda.finance.Currencies.DOLLARS;
 import static net.corda.finance.Currencies.issuedBy;
 import static net.corda.testing.CoreTestUtils.*;
-import static net.corda.testing.NodeTestUtils.transaction;
+import static net.corda.testing.node.NodeTestUtils.transaction;
 
 /**
  * This is an incomplete Java replica of CashTests.kt to show how to use the Java test DSL

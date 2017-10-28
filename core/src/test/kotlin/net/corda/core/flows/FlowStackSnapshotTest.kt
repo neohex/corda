@@ -1,8 +1,7 @@
-package net.corda.testing
+package net.corda.core.flows
 
 import co.paralleluniverse.fibers.Suspendable
 import net.corda.client.jackson.JacksonSupport
-import net.corda.core.flows.*
 import net.corda.core.internal.div
 import net.corda.core.internal.list
 import net.corda.core.internal.read
@@ -10,6 +9,7 @@ import net.corda.core.messaging.startFlow
 import net.corda.core.serialization.CordaSerializable
 import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
+import net.corda.testing.DUMMY_NOTARY
 import net.corda.testing.driver.driver
 import net.corda.testing.node.MockNetwork
 import org.junit.Ignore

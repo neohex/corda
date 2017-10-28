@@ -17,7 +17,7 @@ import net.corda.nodeapi.User
 import net.corda.testing.*
 import net.corda.testing.driver.NodeHandle
 import net.corda.testing.driver.driver
-import net.corda.testing.node.DriverBasedTest
+import net.corda.testing.driver.internal.DriverBasedTest
 import org.junit.Test
 import rx.Observable
 import java.util.*

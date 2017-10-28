@@ -4,10 +4,12 @@ import net.corda.cordform.CordformContext
 import net.corda.cordform.CordformDefinition
 import net.corda.core.internal.div
 import net.corda.node.services.config.NotaryConfig
-import net.corda.testing.ALICE
-import net.corda.testing.BOB
-import net.corda.testing.DUMMY_NOTARY
-import net.corda.testing.internal.demorun.*
+import net.corda.testing.*
+import net.corda.testing.driver.internal.runNodes
+import net.corda.testing.internal.name
+import net.corda.testing.internal.node
+import net.corda.testing.internal.notary
+import net.corda.testing.internal.rpcUsers
 
 fun main(args: Array<String>) = CustomNotaryCordform().runNodes()
 

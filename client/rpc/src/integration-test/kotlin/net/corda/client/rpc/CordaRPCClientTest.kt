@@ -24,7 +24,7 @@ import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
 import net.corda.testing.ALICE
 import net.corda.testing.chooseIdentity
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.NodeBasedTest
 import org.apache.activemq.artemis.api.core.ActiveMQSecurityException
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.After

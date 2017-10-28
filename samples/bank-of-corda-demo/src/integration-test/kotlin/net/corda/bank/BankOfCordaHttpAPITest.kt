@@ -5,7 +5,7 @@ import net.corda.bank.api.BankOfCordaWebApi.IssueRequestParams
 import net.corda.core.utilities.getOrThrow
 import net.corda.testing.BOC
 import net.corda.testing.driver.driver
-import net.corda.testing.notary
+import net.corda.testing.driver.notary
 import org.junit.Test
 import kotlin.test.assertTrue
 

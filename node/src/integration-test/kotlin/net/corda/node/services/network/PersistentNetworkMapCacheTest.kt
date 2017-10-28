@@ -12,7 +12,7 @@ import net.corda.core.utilities.*
 import net.corda.node.internal.Node
 import net.corda.node.internal.StartedNode
 import net.corda.testing.*
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.NodeBasedTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test

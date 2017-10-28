@@ -1,4 +1,4 @@
-package net.corda.testing.performance
+package net.corda.testing.driver.internal.performance
 
 import java.time.Duration
 import java.time.temporal.ChronoUnit

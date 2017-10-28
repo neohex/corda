@@ -19,8 +19,9 @@ import net.corda.node.services.network.NetworkMapService.RegistrationRequest
 import net.corda.node.services.network.NodeRegistration
 import net.corda.node.utilities.AddOrRemove
 import net.corda.testing.*
-import net.corda.testing.node.NodeBasedTest
-import net.corda.testing.node.SimpleNode
+import net.corda.testing.internal.NodeBasedTest
+import net.corda.testing.internal.SimpleNode
+import net.corda.testing.node.testNodeConfiguration
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Test

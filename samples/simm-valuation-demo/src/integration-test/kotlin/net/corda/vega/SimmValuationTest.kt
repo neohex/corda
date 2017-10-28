@@ -6,6 +6,7 @@ import net.corda.core.utilities.getOrThrow
 import net.corda.testing.*
 import net.corda.testing.driver.driver
 import net.corda.testing.http.HttpApi
+import net.corda.testing.internal.IntegrationTestCategory
 import net.corda.vega.api.PortfolioApi
 import net.corda.vega.api.PortfolioApiUtils
 import net.corda.vega.api.SwapDataModel

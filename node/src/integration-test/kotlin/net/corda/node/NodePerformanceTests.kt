@@ -18,10 +18,10 @@ import net.corda.testing.DUMMY_NOTARY
 import net.corda.testing.chooseIdentity
 import net.corda.testing.driver.NodeHandle
 import net.corda.testing.driver.driver
-import net.corda.testing.performance.div
-import net.corda.testing.performance.startPublishingFixedRateInjector
-import net.corda.testing.performance.startReporter
-import net.corda.testing.performance.startTightLoopInjector
+import net.corda.testing.driver.internal.performance.startPublishingFixedRateInjector
+import net.corda.testing.driver.internal.performance.startReporter
+import net.corda.testing.driver.internal.performance.startTightLoopInjector
+import net.corda.testing.driver.internal.performance.div
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test

@@ -4,8 +4,8 @@ import net.corda.core.messaging.RPCOps
 import net.corda.node.services.messaging.getRpcContext
 import net.corda.node.services.messaging.requirePermission
 import net.corda.nodeapi.User
-import net.corda.testing.RPCDriverExposedDSLInterface
-import net.corda.testing.rpcDriver
+import net.corda.testing.driver.internal.RPCDriverExposedDSLInterface
+import net.corda.testing.driver.internal.rpcDriver
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

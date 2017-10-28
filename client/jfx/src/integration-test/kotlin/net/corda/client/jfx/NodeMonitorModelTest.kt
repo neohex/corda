@@ -30,7 +30,7 @@ import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
 import net.corda.testing.*
 import net.corda.testing.driver.driver
-import net.corda.testing.node.DriverBasedTest
+import net.corda.testing.driver.internal.DriverBasedTest
 import org.junit.Test
 import rx.Observable
 

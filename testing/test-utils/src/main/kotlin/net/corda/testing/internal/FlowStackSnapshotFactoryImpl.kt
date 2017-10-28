@@ -1,4 +1,4 @@
-package net.corda.testing
+package net.corda.testing.internal
 
 import co.paralleluniverse.fibers.Fiber
 import co.paralleluniverse.fibers.Instrumented
@@ -6,6 +6,7 @@ import co.paralleluniverse.fibers.Stack
 import co.paralleluniverse.fibers.Suspendable
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
+import net.corda.client.jackson.JacksonSupport
 import net.corda.core.flows.FlowLogic
 import net.corda.core.flows.FlowStackSnapshot
 import net.corda.core.flows.FlowStackSnapshot.Frame
@@ -13,10 +14,9 @@ import net.corda.core.flows.StackFrameDataToken
 import net.corda.core.flows.StateMachineRunId
 import net.corda.core.internal.FlowStateMachine
 import net.corda.core.internal.div
+import net.corda.core.internal.uncheckedCast
 import net.corda.core.internal.write
 import net.corda.core.serialization.SerializeAsToken
-import net.corda.client.jackson.JacksonSupport
-import net.corda.core.internal.uncheckedCast
 import net.corda.node.services.statemachine.FlowStackSnapshotFactory
 import java.nio.file.Path
 import java.time.Instant

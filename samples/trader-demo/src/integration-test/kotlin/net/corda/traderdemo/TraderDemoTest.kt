@@ -12,8 +12,8 @@ import net.corda.finance.schemas.CommercialPaperSchemaV1
 import net.corda.node.services.FlowPermissions.Companion.startFlowPermission
 import net.corda.nodeapi.User
 import net.corda.testing.*
-import net.corda.testing.driver.poll
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.poll
+import net.corda.testing.internal.NodeBasedTest
 import net.corda.traderdemo.flow.BuyerFlow
 import net.corda.traderdemo.flow.CommercialPaperIssueFlow
 import net.corda.traderdemo.flow.SellerFlow

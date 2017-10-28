@@ -10,7 +10,7 @@ import net.corda.node.utilities.getX509Certificate
 import net.corda.node.utilities.loadKeyStore
 import net.corda.testing.ALICE
 import net.corda.testing.rigorousMock
-import net.corda.testing.testNodeConfiguration
+import net.corda.testing.node.testNodeConfiguration
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.style.BCStyle
 import org.junit.Rule

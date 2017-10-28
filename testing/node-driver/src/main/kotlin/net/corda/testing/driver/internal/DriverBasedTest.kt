@@ -1,4 +1,4 @@
-package net.corda.testing.node
+package net.corda.testing.driver.internal
 
 import com.google.common.util.concurrent.SettableFuture
 import net.corda.core.utilities.getOrThrow

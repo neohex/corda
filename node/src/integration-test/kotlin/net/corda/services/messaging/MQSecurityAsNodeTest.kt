@@ -9,7 +9,7 @@ import net.corda.nodeapi.RPCApi
 import net.corda.nodeapi.config.SSLConfiguration
 import net.corda.testing.MEGA_CORP
 import net.corda.testing.MINI_CORP
-import net.corda.testing.messaging.SimpleMQClient
+import net.corda.testing.internal.SimpleMQClient
 import org.apache.activemq.artemis.api.config.ActiveMQDefaultConfiguration
 import org.apache.activemq.artemis.api.core.ActiveMQClusterSecurityException
 import org.apache.activemq.artemis.api.core.ActiveMQNotConnectedException
@@ -18,7 +18,6 @@ import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.bouncycastle.asn1.x509.GeneralName
 import org.bouncycastle.asn1.x509.GeneralSubtree
 import org.bouncycastle.asn1.x509.NameConstraints
-import org.bouncycastle.cert.X509CertificateHolder
 import org.junit.Test
 import java.nio.file.Files
 

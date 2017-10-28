@@ -1,6 +1,6 @@
 @file:JvmName("DemoRunner")
 
-package net.corda.testing.internal.demorun
+package net.corda.testing.driver.internal
 
 import net.corda.cordform.CordformDefinition
 import net.corda.cordform.CordformNode

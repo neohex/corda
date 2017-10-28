@@ -32,9 +32,9 @@ import net.corda.testing.TEST_TX_TIME
 import net.corda.testing.TestDependencyInjectionBase
 import net.corda.testing.TestLedgerDSLInterpreter
 import net.corda.testing.TestTransactionDSLInterpreter
-import net.corda.testing.ledger
+import net.corda.testing.node.ledger
 import net.corda.testing.node.MockServices
-import net.corda.testing.transaction
+import net.corda.testing.node.transaction
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.LocalDate

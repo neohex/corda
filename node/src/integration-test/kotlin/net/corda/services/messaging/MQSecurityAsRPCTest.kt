@@ -1,7 +1,7 @@
 package net.corda.services.messaging
 
 import net.corda.nodeapi.User
-import net.corda.testing.messaging.SimpleMQClient
+import net.corda.testing.internal.SimpleMQClient
 import org.junit.Test
 
 /**

@@ -18,7 +18,7 @@ import net.corda.node.internal.StartedNode
 import net.corda.node.services.messaging.*
 import net.corda.node.services.transactions.RaftValidatingNotaryService
 import net.corda.testing.*
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.NodeBasedTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Ignore
 import org.junit.Test

@@ -12,9 +12,9 @@ import net.corda.nodeapi.User
 import net.corda.nodeapi.internal.ServiceInfo
 import net.corda.nodeapi.internal.ServiceType
 import net.corda.testing.ALICE
-import net.corda.testing.ProjectStructure.projectRootDir
-import net.corda.testing.driver.ListenProcessDeathException
 import net.corda.testing.driver.driver
+import net.corda.testing.internal.ListenProcessDeathException
+import net.corda.testing.internal.ProjectStructure.projectRootDir
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Ignore

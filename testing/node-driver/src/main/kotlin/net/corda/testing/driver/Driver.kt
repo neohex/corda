@@ -8,7 +8,6 @@ import com.typesafe.config.ConfigRenderOptions
 import net.corda.client.rpc.CordaRPCClient
 import net.corda.cordform.CordformContext
 import net.corda.cordform.CordformNode
-import net.corda.core.CordaException
 import net.corda.core.concurrent.CordaFuture
 import net.corda.core.concurrent.firstOf
 import net.corda.core.identity.CordaX500Name
@@ -16,12 +15,14 @@ import net.corda.core.identity.Party
 import net.corda.core.internal.ThreadBox
 import net.corda.core.internal.concurrent.*
 import net.corda.core.internal.div
-import net.corda.core.internal.times
 import net.corda.core.messaging.CordaRPCOps
 import net.corda.core.node.NodeInfo
 import net.corda.core.node.services.NetworkMapCache
 import net.corda.core.toFuture
-import net.corda.core.utilities.*
+import net.corda.core.utilities.NetworkHostAndPort
+import net.corda.core.utilities.getOrThrow
+import net.corda.core.utilities.loggerFor
+import net.corda.core.utilities.millis
 import net.corda.node.internal.Node
 import net.corda.node.internal.NodeStartup
 import net.corda.node.internal.StartedNode
@@ -34,6 +35,11 @@ import net.corda.nodeapi.User
 import net.corda.nodeapi.config.toConfig
 import net.corda.nodeapi.internal.addShutdownHook
 import net.corda.testing.*
+import net.corda.testing.internal.ProcessUtilities
+import net.corda.testing.driver.internal.ShutdownManager
+import net.corda.testing.internal.ListenProcessDeathException
+import net.corda.testing.internal.addressMustBeBoundFuture
+import net.corda.testing.internal.poll
 import net.corda.testing.node.MockServices.Companion.MOCK_VERSION_INFO
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -49,12 +55,9 @@ import java.time.Instant
 import java.time.ZoneOffset.UTC
 import java.time.format.DateTimeFormatter
 import java.util.*
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.TimeUnit.SECONDS
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
@@ -471,176 +474,6 @@ fun getTimestampAsDirectoryName(): String {
     return DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(UTC).format(Instant.now())
 }
 
-class ListenProcessDeathException(hostAndPort: NetworkHostAndPort, listenProcess: Process) : CordaException("The process that was expected to listen on $hostAndPort has died with status: ${listenProcess.exitValue()}")
-
-/**
- * @throws ListenProcessDeathException if [listenProcess] dies before the check succeeds, i.e. the check can't succeed as intended.
- */
-fun addressMustBeBound(executorService: ScheduledExecutorService, hostAndPort: NetworkHostAndPort, listenProcess: Process? = null) {
-    addressMustBeBoundFuture(executorService, hostAndPort, listenProcess).getOrThrow()
-}
-
-fun addressMustBeBoundFuture(executorService: ScheduledExecutorService, hostAndPort: NetworkHostAndPort, listenProcess: Process? = null): CordaFuture<Unit> {
-    return poll(executorService, "address $hostAndPort to bind") {
-        if (listenProcess != null && !listenProcess.isAlive) {
-            throw ListenProcessDeathException(hostAndPort, listenProcess)
-        }
-        try {
-            Socket(hostAndPort.host, hostAndPort.port).close()
-            Unit
-        } catch (_exception: SocketException) {
-            null
-        }
-    }
-}
-
-/*
- * The default timeout value of 40 seconds have been chosen based on previous node shutdown time estimate.
- * It's been observed that nodes can take up to 30 seconds to shut down, so just to stay on the safe side the 40 seconds
- * timeout has been chosen.
- */
-fun addressMustNotBeBound(executorService: ScheduledExecutorService, hostAndPort: NetworkHostAndPort, timeout: Duration = 40.seconds) {
-    addressMustNotBeBoundFuture(executorService, hostAndPort).getOrThrow(timeout)
-}
-
-fun addressMustNotBeBoundFuture(executorService: ScheduledExecutorService, hostAndPort: NetworkHostAndPort): CordaFuture<Unit> {
-    return poll(executorService, "address $hostAndPort to unbind") {
-        try {
-            Socket(hostAndPort.host, hostAndPort.port).close()
-            null
-        } catch (_exception: SocketException) {
-            Unit
-        }
-    }
-}
-
-fun <A> poll(
-        executorService: ScheduledExecutorService,
-        pollName: String,
-        pollInterval: Duration = 500.millis,
-        warnCount: Int = 120,
-        check: () -> A?
-): CordaFuture<A> {
-    val resultFuture = openFuture<A>()
-    val task = object : Runnable {
-        var counter = -1
-        override fun run() {
-            if (resultFuture.isCancelled) return // Give up, caller can no longer get the result.
-            if (++counter == warnCount) {
-                log.warn("Been polling $pollName for ${(pollInterval * warnCount.toLong()).seconds} seconds...")
-            }
-            try {
-                val checkResult = check()
-                if (checkResult != null) {
-                    resultFuture.set(checkResult)
-                } else {
-                    executorService.schedule(this, pollInterval.toMillis(), MILLISECONDS)
-                }
-            } catch (t: Throwable) {
-                resultFuture.setException(t)
-            }
-        }
-    }
-    executorService.submit(task) // The check may be expensive, so always run it in the background even the first time.
-    return resultFuture
-}
-
-class ShutdownManager(private val executorService: ExecutorService) {
-    private class State {
-        val registeredShutdowns = ArrayList<CordaFuture<() -> Unit>>()
-        var isShutdown = false
-    }
-
-    private val state = ThreadBox(State())
-
-    companion object {
-        inline fun <A> run(providedExecutorService: ExecutorService? = null, block: ShutdownManager.() -> A): A {
-            val executorService = providedExecutorService ?: Executors.newScheduledThreadPool(1)
-            val shutdownManager = ShutdownManager(executorService)
-            try {
-                return block(shutdownManager)
-            } finally {
-                shutdownManager.shutdown()
-                providedExecutorService ?: executorService.shutdown()
-            }
-        }
-    }
-
-    fun shutdown() {
-        val shutdownActionFutures = state.locked {
-            if (isShutdown) {
-                emptyList<CordaFuture<() -> Unit>>()
-            } else {
-                isShutdown = true
-                registeredShutdowns
-            }
-        }
-        val shutdowns = shutdownActionFutures.map { Try.on { it.getOrThrow(1.seconds) } }
-        shutdowns.reversed().forEach {
-            when (it) {
-                is Try.Success ->
-                    try {
-                        it.value()
-                    } catch (t: Throwable) {
-                        log.warn("Exception while shutting down", t)
-                    }
-                is Try.Failure -> log.warn("Exception while getting shutdown method, disregarding", it.exception)
-            }
-        }
-    }
-
-    fun registerShutdown(shutdown: CordaFuture<() -> Unit>) {
-        state.locked {
-            require(!isShutdown)
-            registeredShutdowns.add(shutdown)
-        }
-    }
-
-    fun registerShutdown(shutdown: () -> Unit) = registerShutdown(doneFuture(shutdown))
-
-    fun registerProcessShutdown(processFuture: CordaFuture<Process>) {
-        val processShutdown = processFuture.map { process ->
-            {
-                process.destroy()
-                /** Wait 5 seconds, then [Process.destroyForcibly] */
-                val finishedFuture = executorService.submit {
-                    process.waitFor()
-                }
-                try {
-                    finishedFuture.get(5, SECONDS)
-                } catch (exception: TimeoutException) {
-                    finishedFuture.cancel(true)
-                    process.destroyForcibly()
-                }
-                Unit
-            }
-        }
-        registerShutdown(processShutdown)
-    }
-
-    interface Follower {
-        fun unfollow()
-        fun shutdown()
-    }
-
-    fun follower() = object : Follower {
-        private val start = state.locked { registeredShutdowns.size }
-        private val end = AtomicInteger(start - 1)
-        override fun unfollow() = end.set(state.locked { registeredShutdowns.size })
-        override fun shutdown() = end.get().let { end ->
-            start > end && throw IllegalStateException("You haven't called unfollow.")
-            state.locked {
-                registeredShutdowns.subList(start, end).listIterator(end - start).run {
-                    while (hasPrevious()) {
-                        previous().getOrThrow().invoke()
-                        set(doneFuture {}) // Don't break other followers by doing a remove.
-                    }
-                }
-            }
-        }
-    }
-}
-
 class DriverDSL(
         val portAllocation: PortAllocation,
         val debugPortAllocation: PortAllocation,
@@ -1010,7 +843,7 @@ class DriverDSL(
                 maximumHeapSize: String
         ): CordaFuture<Process> {
             val processFuture = executorService.fork {
-                log.info("Starting out-of-process Node ${nodeConf.myLegalName.organisation}, debug port is " + debugPort ?: "not enabled")
+                log.info("Starting out-of-process Node ${nodeConf.myLegalName.organisation}, debug port is " + (debugPort ?: "not enabled"))
                 // Write node.conf
                 writeConfig(nodeConf.baseDirectory, "node.conf", config)
 
@@ -1021,7 +854,13 @@ class DriverDSL(
                         "java.io.tmpdir" to System.getProperty("java.io.tmpdir") // Inherit from parent process
                 )
                 // See experimental/quasar-hook/README.md for how to generate.
-                val excludePattern = "x(antlr**;bftsmart**;ch**;co.paralleluniverse**;com.codahale**;com.esotericsoftware**;com.fasterxml**;com.google**;com.ibm**;com.intellij**;com.jcabi**;com.nhaarman**;com.opengamma**;com.typesafe**;com.zaxxer**;de.javakaffee**;groovy**;groovyjarjarantlr**;groovyjarjarasm**;io.atomix**;io.github**;io.netty**;jdk**;joptsimple**;junit**;kotlin**;net.bytebuddy**;net.i2p**;org.apache**;org.assertj**;org.bouncycastle**;org.codehaus**;org.crsh**;org.dom4j**;org.fusesource**;org.h2**;org.hamcrest**;org.hibernate**;org.jboss**;org.jcp**;org.joda**;org.junit**;org.mockito**;org.objectweb**;org.objenesis**;org.slf4j**;org.w3c**;org.xml**;org.yaml**;reflectasm**;rx**)"
+                val excludePattern = "x(antlr**;bftsmart**;ch**;co.paralleluniverse**;com.codahale**;com.esotericsoftware**;" +
+                        "com.fasterxml**;com.google**;com.ibm**;com.intellij**;com.jcabi**;com.nhaarman**;com.opengamma**;" +
+                        "com.typesafe**;com.zaxxer**;de.javakaffee**;groovy**;groovyjarjarantlr**;groovyjarjarasm**;io.atomix**;" +
+                        "io.github**;io.netty**;jdk**;joptsimple**;junit**;kotlin**;net.bytebuddy**;net.i2p**;org.apache**;" +
+                        "org.assertj**;org.bouncycastle**;org.codehaus**;org.crsh**;org.dom4j**;org.fusesource**;org.h2**;" +
+                        "org.hamcrest**;org.hibernate**;org.jboss**;org.jcp**;org.joda**;org.junit**;org.mockito**;org.objectweb**;" +
+                        "org.objenesis**;org.slf4j**;org.w3c**;org.xml**;org.yaml**;reflectasm**;rx**)"
                 val extraJvmArguments = systemProperties.map { "-D${it.key}=${it.value}" } +
                         "-javaagent:$quasarJarPath=$excludePattern"
                 val loggingLevel = if (debugPort == null) "INFO" else "DEBUG"

@@ -1,6 +1,6 @@
 @file:JvmName("NodeTestUtils")
 
-package net.corda.testing
+package net.corda.testing.node
 
 import com.nhaarman.mockito_kotlin.doCallRealMethod
 import com.nhaarman.mockito_kotlin.doReturn
@@ -12,7 +12,7 @@ import net.corda.node.services.config.CertChainPolicyConfig
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.node.services.config.VerifierType
 import net.corda.nodeapi.User
-import net.corda.testing.node.MockServices
+import net.corda.testing.*
 import net.corda.testing.node.MockServices.Companion.makeTestDataSourceProperties
 import net.corda.testing.node.MockServices.Companion.makeTestDatabaseProperties
 import java.net.URL

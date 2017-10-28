@@ -7,7 +7,7 @@ import net.corda.finance.`issued by`
 import net.corda.finance.contracts.asset.Cash
 import net.corda.testing.MEGA_CORP
 import net.corda.testing.MINI_CORP
-import net.corda.testing.ledger
+import net.corda.testing.node.ledger
 import org.junit.Test
 import java.time.Instant
 import java.time.temporal.ChronoUnit

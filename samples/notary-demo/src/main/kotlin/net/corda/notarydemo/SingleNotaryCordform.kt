@@ -11,11 +11,11 @@ import net.corda.notarydemo.flows.RPCStartableNotaryFlowClient
 import net.corda.testing.ALICE
 import net.corda.testing.BOB
 import net.corda.testing.DUMMY_NOTARY
-import net.corda.testing.internal.demorun.name
-import net.corda.testing.internal.demorun.node
-import net.corda.testing.internal.demorun.notary
-import net.corda.testing.internal.demorun.rpcUsers
-import net.corda.testing.internal.demorun.runNodes
+import net.corda.testing.internal.name
+import net.corda.testing.internal.node
+import net.corda.testing.internal.notary
+import net.corda.testing.internal.rpcUsers
+import net.corda.testing.driver.internal.runNodes
 
 fun main(args: Array<String>) = SingleNotaryCordform().runNodes()
 

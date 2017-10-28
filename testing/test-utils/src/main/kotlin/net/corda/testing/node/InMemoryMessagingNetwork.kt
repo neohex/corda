@@ -46,7 +46,7 @@ import kotlin.concurrent.thread
 @ThreadSafe
 class InMemoryMessagingNetwork(
         val sendManuallyPumped: Boolean,
-        val servicePeerAllocationStrategy: ServicePeerAllocationStrategy = InMemoryMessagingNetwork.ServicePeerAllocationStrategy.Random(),
+        val servicePeerAllocationStrategy: ServicePeerAllocationStrategy = ServicePeerAllocationStrategy.Random(),
         private val messagesInFlight: ReusableLatch = ReusableLatch()
 ) : SingletonSerializeAsToken() {
     companion object {

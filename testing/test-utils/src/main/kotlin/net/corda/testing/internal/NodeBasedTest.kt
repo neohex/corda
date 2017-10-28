@@ -1,4 +1,4 @@
-package net.corda.testing.node
+package net.corda.testing.internal
 
 import net.corda.core.concurrent.CordaFuture
 import net.corda.core.identity.CordaX500Name
@@ -16,7 +16,6 @@ import net.corda.nodeapi.User
 import net.corda.nodeapi.config.toConfig
 import net.corda.testing.DUMMY_MAP
 import net.corda.testing.TestDependencyInjectionBase
-import net.corda.testing.driver.addressMustNotBeBoundFuture
 import net.corda.testing.getFreeLocalPorts
 import net.corda.testing.node.MockServices.Companion.MOCK_VERSION_INFO
 import org.apache.logging.log4j.Level

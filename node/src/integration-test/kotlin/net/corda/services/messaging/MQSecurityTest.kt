@@ -28,8 +28,8 @@ import net.corda.testing.ALICE
 import net.corda.testing.BOB
 import net.corda.testing.chooseIdentity
 import net.corda.testing.configureTestSSL
-import net.corda.testing.messaging.SimpleMQClient
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.SimpleMQClient
+import net.corda.testing.internal.NodeBasedTest
 import org.apache.activemq.artemis.api.core.ActiveMQNonExistentQueueException
 import org.apache.activemq.artemis.api.core.ActiveMQSecurityException
 import org.apache.activemq.artemis.api.core.SimpleString

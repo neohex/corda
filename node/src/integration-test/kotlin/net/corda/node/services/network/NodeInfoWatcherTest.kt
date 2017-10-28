@@ -14,7 +14,7 @@ import net.corda.testing.ALICE_KEY
 import net.corda.testing.DEV_TRUST_ROOT
 import net.corda.testing.getTestPartyAndCertificate
 import net.corda.testing.node.MockKeyManagementService
-import net.corda.testing.node.NodeBasedTest
+import net.corda.testing.internal.NodeBasedTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.contentOf
 import org.junit.Before

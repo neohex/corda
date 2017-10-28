@@ -8,8 +8,9 @@ import net.corda.finance.contracts.CommercialPaper
 import net.corda.finance.contracts.ICommercialPaperState
 import net.corda.finance.contracts.asset.CASH
 import net.corda.finance.contracts.asset.Cash
-import net.corda.finance.contracts.asset.ownedBy
 import net.corda.testing.*
+import net.corda.testing.node.ledger
+import net.corda.testing.node.transaction
 import org.junit.Test
 
 class CommercialPaperTest {

@@ -11,13 +11,12 @@ import net.corda.node.services.config.NotaryConfig
 import net.corda.node.services.transactions.BFTNonValidatingNotaryService
 import net.corda.node.services.transactions.minCorrectReplicas
 import net.corda.node.utilities.ServiceIdentityGenerator
-import net.corda.testing.ALICE
-import net.corda.testing.BOB
-import net.corda.testing.internal.demorun.name
-import net.corda.testing.internal.demorun.node
-import net.corda.testing.internal.demorun.notary
-import net.corda.testing.internal.demorun.rpcUsers
-import net.corda.testing.internal.demorun.runNodes
+import net.corda.testing.*
+import net.corda.testing.driver.internal.runNodes
+import net.corda.testing.internal.name
+import net.corda.testing.internal.node
+import net.corda.testing.internal.notary
+import net.corda.testing.internal.rpcUsers
 
 fun main(args: Array<String>) = BFTNotaryCordform().runNodes()
 

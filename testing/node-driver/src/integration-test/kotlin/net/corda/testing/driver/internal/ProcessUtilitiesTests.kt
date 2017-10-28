@@ -1,5 +1,6 @@
-package net.corda.testing.driver
+package net.corda.testing.driver.internal
 
+import net.corda.testing.internal.ProcessUtilities
 import org.apache.commons.io.FileUtils
 import org.junit.Rule
 import org.junit.Test

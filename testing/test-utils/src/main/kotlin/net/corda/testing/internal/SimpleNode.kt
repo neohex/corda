@@ -1,4 +1,4 @@
-package net.corda.testing.node
+package net.corda.testing.internal
 
 import com.codahale.metrics.MetricRegistry
 import net.corda.core.crypto.generateKeyPair
@@ -15,11 +15,11 @@ import net.corda.node.services.keys.E2ETestKeyManagementService
 import net.corda.node.services.messaging.ArtemisMessagingServer
 import net.corda.node.services.messaging.NodeMessagingClient
 import net.corda.node.services.network.NetworkMapCacheImpl
-import net.corda.node.services.schema.NodeSchemaService
 import net.corda.node.utilities.AffinityExecutor.ServiceAffinityExecutor
 import net.corda.node.utilities.CordaPersistence
 import net.corda.node.utilities.configureDatabase
 import net.corda.testing.freeLocalHostAndPort
+import net.corda.testing.node.MockNetworkMapCache
 import net.corda.testing.node.MockServices.Companion.MOCK_VERSION_INFO
 import java.security.KeyPair
 import java.security.cert.X509Certificate

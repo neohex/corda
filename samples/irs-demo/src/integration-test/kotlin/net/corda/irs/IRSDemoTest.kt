@@ -24,6 +24,7 @@ import net.corda.nodeapi.User
 import net.corda.test.spring.springDriver
 import net.corda.testing.*
 import net.corda.testing.http.HttpApi
+import net.corda.testing.internal.IntegrationTestCategory
 import org.apache.commons.io.IOUtils
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
