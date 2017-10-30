@@ -1,5 +1,6 @@
 package net.corda.testing.node
 
+import com.nhaarman.mockito_kotlin.mock
 import net.corda.core.concurrent.CordaFuture
 import net.corda.core.crypto.entropyToKeyPair
 import net.corda.core.identity.CordaX500Name
@@ -36,3 +37,4 @@ class MockNetworkMapCache(database: CordaPersistence, configuration: NodeConfigu
         addNode(mockNodeB)
     }
 }
+
