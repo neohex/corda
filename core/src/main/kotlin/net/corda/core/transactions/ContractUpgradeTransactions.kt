@@ -30,9 +30,10 @@ data class ContractUpgradeWireTransaction(
     }
 
     /** Hash of the component list that are hidden in the [ContractUpgradeFilteredTransaction]. */
-    private val hiddenComponentHash: SecureHash get() = serializedHash(outputs + legacyContractAttachment + upgradedContractAttachment)
+    private val hiddenComponentHash: SecureHash
+        get() = serializedHash(outputs + legacyContractAttachment + upgradedContractAttachment + privacySalt)
 
-    override val id: SecureHash by lazy { serializedHash(inputs + notary + hiddenComponentHash) }
+    override val id: SecureHash by lazy { serializedHash(inputs + notary).hashConcat(hiddenComponentHash) }
 
     fun resolve(services: ServiceHub, sigs: List<TransactionSignature>): ContractUpgradeLedgerTransaction {
         val resolvedInputs = inputs.map { ref ->
@@ -59,7 +60,7 @@ data class ContractUpgradeFilteredTransaction(
         val notary: Party,
         val rest: SecureHash
 ) : NamedByHash {
-    override val id: SecureHash get() = serializedHash(inputs + notary + rest)
+    override val id: SecureHash get() = serializedHash(inputs + notary).hashConcat(rest)
 }
 
 /**
