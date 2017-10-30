@@ -78,7 +78,6 @@ class CordaRPCClient @JvmOverloads constructor(
     private val rpcClient = RPCClient<CordaRPCOps>(
             tcpTransport(ConnectionDirection.Outbound(), hostAndPort, config = null),
             configuration.toRpcClientConfiguration(),
-            //AMQP_RPC_CLIENT_CONTEXT
             KRYO_RPC_CLIENT_CONTEXT
     )
 

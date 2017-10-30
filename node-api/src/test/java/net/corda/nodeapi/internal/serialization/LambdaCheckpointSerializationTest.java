@@ -6,7 +6,7 @@ import net.corda.core.serialization.SerializationDefaults;
 import net.corda.core.serialization.SerializationFactory;
 import net.corda.core.serialization.SerializedBytes;
 import net.corda.nodeapi.internal.serialization.kryo.CordaClosureSerializer;
-import net.corda.nodeapi.internal.serialization.kryo.KryoSerialisationSchemeKt;
+import net.corda.nodeapi.internal.serialization.kryo.KryoSerializationSchemeKt;
 import net.corda.testing.TestDependencyInjectionBase;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,7 +25,7 @@ public final class LambdaCheckpointSerializationTest extends TestDependencyInjec
     @Before
     public void setup() {
         factory = SerializationDefaults.INSTANCE.getSERIALIZATION_FACTORY();
-        context = new SerializationContextImpl(KryoSerialisationSchemeKt.getKryoHeaderV0_1(), this.getClass().getClassLoader(), AllWhitelist.INSTANCE, Maps.newHashMap(), true, SerializationContext.UseCase.Checkpoint);
+        context = new SerializationContextImpl(KryoSerializationSchemeKt.getKryoHeaderV0_1(), this.getClass().getClassLoader(), AllWhitelist.INSTANCE, Maps.newHashMap(), true, SerializationContext.UseCase.Checkpoint);
     }
 
     @Test

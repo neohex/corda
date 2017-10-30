@@ -371,11 +371,6 @@ open class Node(configuration: FullNodeConfiguration,
             registerScheme(KryoServerSerializationScheme())
             registerScheme(AMQPServerSerializationScheme())
         }
-        /*
-        SerializationDefaults.P2P_CONTEXT = AMQP_P2P_CONTEXT.withClassLoader(classloader)
-        SerializationDefaults.RPC_SERVER_CONTEXT = AMQP_RPC_SERVER_CONTEXT.withClassLoader(classloader)
-        SerializationDefaults.STORAGE_CONTEXT = AMQP_STORAGE_CONTEXT.withClassLoader(classloader)
-        */
         SerializationDefaults.P2P_CONTEXT = KRYO_P2P_CONTEXT.withClassLoader(classloader)
         SerializationDefaults.RPC_SERVER_CONTEXT = KRYO_RPC_SERVER_CONTEXT.withClassLoader(classloader)
         SerializationDefaults.STORAGE_CONTEXT = KRYO_STORAGE_CONTEXT.withClassLoader(classloader)
